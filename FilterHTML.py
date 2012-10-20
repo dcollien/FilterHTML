@@ -21,6 +21,7 @@ class HTMLFilter(object):
       try:
          return self.chars.next()
       except StopIteration:
+         self.curr_char = ''
          return ''
 
    def filter(self, html):
@@ -48,7 +49,7 @@ class HTMLFilter(object):
       else:
          self.filter_opening_tag()
 
-      assert self.curr_char == '>'
+      assert (self.curr_char == '>' or self.curr_char == '')
 
    def extract_whitespace(self):
       whitespace = ''
@@ -68,6 +69,9 @@ class HTMLFilter(object):
          while self.next().lower() in self.tag_chars:
             tag_name += self.curr_char.lower()
 
+      while tag_name in self.allowed_tags and isinstance(self.spec[tag_name], str):
+         tag_name = self.spec[tag_name] # follow aliases
+
       return tag_name
 
    def extract_attribute_name(self):
@@ -80,6 +84,15 @@ class HTMLFilter(object):
 
       return attr_name
 
+   def extract_remaining_tag(self):
+      remaining_tag = ''
+
+      if self.curr_char != '>':
+         remaining_tag += self.curr_char
+         while self.next() != '>' and self.curr_char != '':
+            remaining_tag += self.curr_char
+
+      return remaining_tag
 
    def filter_opening_tag(self):
       self.extract_whitespace()
@@ -102,8 +115,7 @@ class HTMLFilter(object):
 
          self.safeHTML += '>'
       else:
-         while self.next() != '>' and self.curr_char != '':
-            pass # skip until tag closed
+         self.extract_remaining_tag()
 
    def filter_closing_tag(self):
       self.extract_whitespace()
@@ -116,8 +128,7 @@ class HTMLFilter(object):
             self.safeHTML += '</' + tag_name + '>'
             return
       else:
-         while self.next() != '>' and self.curr_char != '':
-            pass # skip until tag closed
+         self.extract_remaining_tag()
 
    def filter_attribute(self, tag_name):
       allowed_attributes = self.spec[tag_name].keys()
@@ -253,19 +264,34 @@ def demo():
          "type": "alpha",
          "name": "[abcdefghijklmnopqrstuvwxyz-]",
          "value": "alphanumeric"
-      }
+      },
+      "hr": {},
+      "br": {},
+      "b": {},
+      "i": {},
+      "p": {},
+
+      # alias
+      "strong": "b"
+
    }
 
    html = '''
 <div class="btn">Hello World</div>
-<a href="http://www.google.com">Click</a>
+<script>alert("bad!")</script>
+<unknown>something here</unknown>
+<a href="http://www.google.com" onclick="alert('bad!');">Click</a>
 <div foo="bah"></div>
+<a href="javascript:alert('bad!')">Foo</a>
 <div class="foo"></div>
 <img src="./foo.png" border="0" width="20" height="20">
 <input type="hidden" value="dog42" name="my-dog">
-<jun<><FJ = ">"< d09"> <a =<>
+<strong>Hello</strong>
+<hr/>
+<jun<><FJ = ">"< d09"> <a =<> <junk<>><>
+a > 5
+b < 3
 '''
 
    print filter_html(html, spec)
-
-
+demo()
