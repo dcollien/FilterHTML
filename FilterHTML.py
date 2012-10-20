@@ -294,4 +294,4 @@ b < 3
 '''
 
    print filter_html(html, spec)
-demo()
+
