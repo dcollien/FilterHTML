@@ -7,7 +7,9 @@ A dictionary-defined whitelisting HTML filter. Useful for filtering HTML to leav
 Python and JavaScript versions
 
 Define an allowed HTML subset as a JSON object or Python dictionary, e.g.
+
     spec = {
+
       "div": {
         // list allowed attribute values, as a list
         "class": [
@@ -15,6 +17,13 @@ Define an allowed HTML subset as a JSON object or Python dictionary, e.g.
            "content"
         ]
       },
+
+      "p": {
+        "class": [
+           "centered"
+        ]
+      },
+
       "a": {
         // parse urls to ensure there's no javascript, by using the "url" string.
         // allowed schemes are 'http', 'https', 'mailto', and 'ftp' (as well as local URIs)
@@ -23,6 +32,7 @@ Define an allowed HTML subset as a JSON object or Python dictionary, e.g.
            "_blank"
         ]
       },
+
       "img": {
         "src": "url",
         // make sure these fields are integers, by using the "int" string
@@ -30,6 +40,7 @@ Define an allowed HTML subset as a JSON object or Python dictionary, e.g.
         "width": "int",
         "height": "int"
       },
+
       "input": {
         // only allow alphabetical characters
         "type": "alpha",
@@ -39,19 +50,15 @@ Define an allowed HTML subset as a JSON object or Python dictionary, e.g.
         "value": "alphanumeric"
       },
 
-      // filter out all attributes
+      // filter out all attributes for these tags
       "hr": {},
       "br": {},
       "strong": {},
+
       "i": {
         // use a regex match
         // in python you can use re.compile
         "class": /^icon-[a-z0-9_]+$/
-      },
-      "p": {
-        "class": [
-           "centered"
-        ]
       },
 
       // aliases:
