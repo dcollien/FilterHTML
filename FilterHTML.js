@@ -118,13 +118,9 @@ var FilterHTML = (function() {
 
       tag_name = this.extract_tag_name();
 
-      console.log('opening', tag_name);
-
       tag_parts = this.follow_aliases(tag_name);
       tag_name = tag_parts[0];
       attributes = tag_parts[1];
-
-      console.log('aliased', tag_name, attributes);
 
       if (this.spec[tag_name]) {
          while (this.curr_char !== '>' && this.curr_char !== '') {
@@ -155,9 +151,6 @@ var FilterHTML = (function() {
       tag_name = this.extract_tag_name();
       tag_parts = this.follow_aliases(tag_name);
       tag_name = tag_parts[0];
-
-
-      console.log('closing', tag_name);
 
       if (this.spec[tag_name]) {
          this.extract_whitespace();
@@ -205,7 +198,7 @@ var FilterHTML = (function() {
 
 
    HTMLFilter.prototype.filter_value = function(tag_name, attribute_name) {
-      var value, quote, rules, i;
+      var value, quote, rules;
 
       value = '';
       quote = '"';
@@ -270,8 +263,6 @@ var FilterHTML = (function() {
 
 
       allowed_scheme = ['http', 'https', 'mailto', 'ftp'].indexOf(scheme.toLowerCase()) >= 0;
-
-      console.log(scheme, url, allowed_scheme)
 
       if (scheme === '') {
          return url;
