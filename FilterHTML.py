@@ -12,7 +12,7 @@ class HTMLFilter(object):
       self.trans_table = TRANS_TABLE
 
       self.html = ''
-      self.safeHTML = ''
+      self.filtered_html = ''
 
       self.allowed_tags = spec.keys()
 
@@ -22,17 +22,17 @@ class HTMLFilter(object):
    def filter(self, html):
       self.html = html
       self.chars = self.__char_gen()
-      self.safeHTML = ''
+      self.filtered_html = ''
       while self.__next():
          if self.curr_char == '<':
             self.__filter_tag()
          else:
             if self.curr_char == '>':
-               self.safeHTML += '&gt;'
+               self.filtered_html += '&gt;'
             else:
-               self.safeHTML += self.curr_char
+               self.filtered_html += self.curr_char
 
-      return self.safeHTML
+      return self.filtered_html
 
 
    def __char_gen(self):
@@ -124,12 +124,12 @@ class HTMLFilter(object):
                attributes.append(attribute)
 
 
-         self.safeHTML += '<' + tag_name
+         self.filtered_html += '<' + tag_name
 
          if len(attributes) > 0:
-            self.safeHTML += ' ' + ' '.join(attributes)
+            self.filtered_html += ' ' + ' '.join(attributes)
 
-         self.safeHTML += '>'
+         self.filtered_html += '>'
       else:
          self.__extract_remaining_tag()
 
@@ -142,7 +142,7 @@ class HTMLFilter(object):
       if tag_name in self.allowed_tags:
          self.__extract_whitespace()
          if self.curr_char == '>':
-            self.safeHTML += '</' + tag_name + '>'
+            self.filtered_html += '</' + tag_name + '>'
             return
       else:
          self.__extract_remaining_tag()
@@ -228,10 +228,11 @@ class HTMLFilter(object):
       parts = url.split(':')
       scheme = ''
       if len(parts) > 1:
+         scheme = parts[0]
          if '/' in scheme or '#' in scheme:
             scheme = ''
+            url = '#'
          else:
-            scheme = parts[0]
             url = ':'.join(parts[1:])
 
       if scheme == '':
@@ -314,7 +315,7 @@ def demo():
 <a href="http://www.google.com" onclick="alert('bad!');">Click</a>
 <div foo="bah"></div>
 <a href="javascript:alert('bad!')">Foo</a>
-<div class="foo"></div>
+<div class="foo"></div><a href="#:x"></a>
 <img src="./foo.png" border="0" width="20" height="20">
 <input type="hidden" value="dog42" name="my-dog">
 <input type="not allowed" value="xxx" name="_+_">
@@ -337,7 +338,7 @@ something here
 <a href="http://www.google.com">Click</a>
 <div></div>
 <a href="#">Foo</a>
-<div></div>
+<div></div><a href="#"></a>
 <img src="./foo.png" border="0" width="20" height="20">
 <input type="hidden" value="dog42" name="my-dog">
 <input value="xxx">
