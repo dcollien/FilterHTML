@@ -1,36 +1,31 @@
+import re
 import string
+
+TRANS_TABLE = string.maketrans('','')
+TAG_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz")
+ATTR_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz-")
 
 class HTMLFilter(object):
    def __init__(self, spec):
-      self.tag_chars = "abcdefghijklmnopqrstuvwxyz"
-      self.attr_chars = "abcdefghijklmnopqrstuvwxyz-"
+      self.tag_chars = TAG_CHARS
+      self.attr_chars = ATTR_CHARS
+      self.trans_table = TRANS_TABLE
+
       self.html = ''
-      self.allowed_tags = spec.keys()
       self.safeHTML = ''
 
-      self.trans_table = string.maketrans('','')
+      self.allowed_tags = spec.keys()
+
       self.spec = spec
 
-   def char_gen(self):
-      self.curr_char = ''
-      for c in self.html:
-         self.curr_char = c
-         yield c
-
-   def next(self):
-      try:
-         return self.chars.next()
-      except StopIteration:
-         self.curr_char = ''
-         return ''
 
    def filter(self, html):
       self.html = html
-      self.chars = self.char_gen()
+      self.chars = self.__char_gen()
       self.safeHTML = ''
-      while self.next():
+      while self.__next():
          if self.curr_char == '<':
-            self.filter_tag()
+            self.__filter_tag()
          else:
             if self.curr_char == '>':
                self.safeHTML += '&gt;'
@@ -40,70 +35,91 @@ class HTMLFilter(object):
       return self.safeHTML
 
 
-   def filter_tag(self):
+   def __char_gen(self):
+      self.curr_char = ''
+      for c in self.html:
+         self.curr_char = c
+         yield c
+
+   def __next(self):
+      try:
+         return self.chars.next()
+      except StopIteration:
+         self.curr_char = ''
+         return ''
+
+   def __filter_tag(self):
       assert self.curr_char == '<'
 
-      if self.next() == '/':
-         self.next()
-         self.filter_closing_tag()
+      if self.__next() == '/':
+         self.__next()
+         self.__filter_closing_tag()
       else:
-         self.filter_opening_tag()
+         self.__filter_opening_tag()
 
       assert (self.curr_char == '>' or self.curr_char == '')
 
-   def extract_whitespace(self):
+   def __extract_whitespace(self):
       whitespace = ''
 
       if self.curr_char.isspace():
          whitespace += self.curr_char
-         while self.next().isspace():
+         while self.__next().isspace():
             whitespace += self.curr_char
 
       return whitespace
 
-   def extract_tag_name(self):
+   def __extract_tag_name(self):
       tag_name = ''
 
       if self.curr_char.lower() in self.tag_chars:
          tag_name += self.curr_char.lower()
-         while self.next().lower() in self.tag_chars:
+         while self.__next().lower() in self.tag_chars:
             tag_name += self.curr_char.lower()
-
-      while tag_name in self.allowed_tags and isinstance(self.spec[tag_name], str):
-         tag_name = self.spec[tag_name] # follow aliases
 
       return tag_name
 
-   def extract_attribute_name(self):
+   def __extract_attribute_name(self):
       attr_name = ''
 
       if self.curr_char.lower() in self.attr_chars:
          attr_name += self.curr_char.lower()
-         while self.next().lower() in self.attr_chars:
+         while self.__next().lower() in self.attr_chars:
             attr_name += self.curr_char.lower()
 
       return attr_name
 
-   def extract_remaining_tag(self):
+   def __extract_remaining_tag(self):
       remaining_tag = ''
 
       if self.curr_char != '>':
          remaining_tag += self.curr_char
-         while self.next() != '>' and self.curr_char != '':
+         while self.__next() != '>' and self.curr_char != '':
             remaining_tag += self.curr_char
 
       return remaining_tag
 
-   def filter_opening_tag(self):
-      self.extract_whitespace()
+   def __follow_aliases(self, tag_name):
+      alias_attributes = []
+      while tag_name in self.allowed_tags and isinstance(self.spec[tag_name], str):
+         tag_parts = self.spec[tag_name].split(' ') # follow aliases
+         tag_name = tag_parts[0]
+         if len(tag_parts) > 1:
+            alias_attributes += tag_parts[1:]
 
-      tag_name = self.extract_tag_name()
+      return tag_name, alias_attributes
+
+   def __filter_opening_tag(self):
+      self.__extract_whitespace()
+
+      tag_name = self.__extract_tag_name()
+
+      tag_name, attributes = self.__follow_aliases(tag_name)
 
       if tag_name in self.allowed_tags:
-         attributes = []
          while self.curr_char != '>' and self.curr_char != '':
-            self.extract_whitespace()
-            attribute = self.filter_attribute(tag_name)
+            self.__extract_whitespace()
+            attribute = self.__filter_attribute(tag_name)
             if attribute is not None:
                attributes.append(attribute)
 
@@ -115,27 +131,28 @@ class HTMLFilter(object):
 
          self.safeHTML += '>'
       else:
-         self.extract_remaining_tag()
+         self.__extract_remaining_tag()
 
-   def filter_closing_tag(self):
-      self.extract_whitespace()
+   def __filter_closing_tag(self):
+      self.__extract_whitespace()
 
-      tag_name = self.extract_tag_name()
+      tag_name = self.__extract_tag_name()
+      tag_name, attributes = self.__follow_aliases(tag_name)
 
       if tag_name in self.allowed_tags:
-         self.extract_whitespace()
+         self.__extract_whitespace()
          if self.curr_char == '>':
             self.safeHTML += '</' + tag_name + '>'
             return
       else:
-         self.extract_remaining_tag()
+         self.__extract_remaining_tag()
 
-   def filter_attribute(self, tag_name):
+   def __filter_attribute(self, tag_name):
       allowed_attributes = self.spec[tag_name].keys()
       
-      attribute_name = self.extract_attribute_name()
+      attribute_name = self.__extract_attribute_name()
       
-      whitespace = self.extract_whitespace()
+      whitespace = self.__extract_whitespace()
 
       is_allowed = attribute_name in allowed_attributes
 
@@ -144,10 +161,10 @@ class HTMLFilter(object):
       if self.curr_char == '=':
          assignment = '='
          
-         self.next() # nom the =
+         self.__next() # nom the =
 
-         self.extract_whitespace()
-         value = self.filter_value(tag_name, attribute_name)
+         self.__extract_whitespace()
+         value = self.__filter_value(tag_name, attribute_name)
          if value is None:
             is_allowed = False
       
@@ -155,7 +172,7 @@ class HTMLFilter(object):
          is_allowed = False
 
       elif self.curr_char not in self.attr_chars and self.curr_char != '>':
-         self.next() # skip invalid characters
+         self.__next() # skip invalid characters
          is_allowed = False
 
       if is_allowed:
@@ -164,20 +181,20 @@ class HTMLFilter(object):
          return None
 
 
-   def filter_value(self, tag_name, attribute_name):
+   def __filter_value(self, tag_name, attribute_name):
       value = ''
       quote = '"'
       if self.curr_char == "'" or self.curr_char == '"':
          quote = self.curr_char
 
-         while self.next() != quote:
+         while self.__next() != quote:
             if self.curr_char == '':
                break
 
             value += self.curr_char
 
          # nom the quote
-         self.next()
+         self.__next()
 
 
 
@@ -187,7 +204,9 @@ class HTMLFilter(object):
       else:
          return None
 
-      if rules == "url":
+      if isinstance(rules, re._pattern_type):
+         value = self.purify_regex(value, rules)
+      elif rules == "url":
          value = self.purify_url(value)
       elif rules == "int":
          value = self.purify_int(value)
@@ -234,6 +253,11 @@ class HTMLFilter(object):
       else:
          return value
 
+   def purify_regex(self, value, regex):
+      if regex.match(value):
+         return value
+      else:
+         return ''
 
 def filter_html(html, spec):
    html_filter = HTMLFilter(spec)
@@ -267,12 +291,19 @@ def demo():
       },
       "hr": {},
       "br": {},
-      "b": {},
-      "i": {},
-      "p": {},
+      "strong": {},
+      "i": {
+         "class": re.compile('^icon-[a-z0-9_]+$')
+      },
+      "p": {
+         "class": [
+            "centered"
+         ]
+      },
 
       # alias
-      "strong": "b"
+      "b": "strong",
+      "center": "p class=\"centered\""
 
    }
 
@@ -286,12 +317,44 @@ def demo():
 <div class="foo"></div>
 <img src="./foo.png" border="0" width="20" height="20">
 <input type="hidden" value="dog42" name="my-dog">
-<strong>Hello</strong>
+<input type="not allowed" value="xxx" name="_+_">
+<b>Hello</b>
+<p style="display:none">Text</p>
+<i class="icon-hello"></i>
+<i class="icon-"></i>
+<i class="icon->"></i>
+<center>This is Centered</center>
 <hr/>
 <jun<><FJ = ">"< d09"> <a =<> <junk<>><>
 a > 5
 b < 3
 '''
 
-   print filter_html(html, spec)
+   expected = '''
+<div class="btn">Hello World</div>
+alert("bad!")
+something here
+<a href="http://www.google.com">Click</a>
+<div></div>
+<a href="#">Foo</a>
+<div></div>
+<img src="./foo.png" border="0" width="20" height="20">
+<input type="hidden" value="dog42" name="my-dog">
+<input value="xxx">
+<strong>Hello</strong>
+<p>Text</p>
+<i class="icon-hello"></i>
+<i></i>
+<i></i>
+<p class="centered">This is Centered</p>
+<hr>
+" <a> &gt;
+a &gt; 5
+b
+'''
+   
+   filtered = filter_html(html, spec)
+
+   print filtered
+   assert filtered.strip() == expected.strip()
 
