@@ -1,6 +1,6 @@
 var FilterHTML = (function() {
 
-   var TAG_REGEX = /^[a-z]$/;
+   var TAG_REGEX = /^[a-z1-6]$/;
    var ATTR_REGEX = /^[a-z\-]$/;
    var WHITESPACE_REGEX = /^\s$/;
 
@@ -198,7 +198,7 @@ var FilterHTML = (function() {
 
 
    HTMLFilter.prototype.filter_value = function(tag_name, attribute_name) {
-      var value, quote, rules;
+      var value, quote, rules, candidate_values, allowed_values, i;
 
       value = '';
       quote = '"';
@@ -233,6 +233,15 @@ var FilterHTML = (function() {
          value = this.purify_regex(value, /^[a-zA-Z0-9]+$/);
       } else if (typeof rules === 'string' && rules.charAt(0) === '[' && rules.charAt(rules.length-1) === ']') {
          value = this.purify_set(value, rules.slice(1,-1));
+      } else if (attribute_name === "class") {
+         candidate_values = value.split(' ');
+         allowed_values = [];
+         for (i = 0; i != candidate_values.length; ++i) {
+            if (rules.indexOf(candidate_values[i]) >= 0) {
+               allowed_values.push(candidate_values[i]);
+            }
+         }
+         value = allowed_values.join(' ');
       } else if (rules.length > 0) {
          if (rules.indexOf(value) < 0) {
             value = '';
