@@ -216,6 +216,8 @@ class HTMLFilter(object):
          value = self.purify_set(value, string.ascii_letters + string.digits)
       elif isinstance(rules, str) and rules.startswith('[') and rules.endswith(']'):
          value = self.purify_set(value, rules[1:-1])
+      elif callable(rules):
+         value = rules(value)
       elif attribute_name == "class":
          candidate_values = value.split(' ')
          allowed_values = []
@@ -226,7 +228,7 @@ class HTMLFilter(object):
       elif value not in rules:
          value = ''
       
-      if value == '':
+      if value is None or value == '':
          return None
       else:
          return quote + value + quote

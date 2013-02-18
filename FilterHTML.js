@@ -233,6 +233,8 @@ var FilterHTML = (function() {
          value = this.purify_regex(value, /^[a-zA-Z0-9]+$/);
       } else if (typeof rules === 'string' && rules.charAt(0) === '[' && rules.charAt(rules.length-1) === ']') {
          value = this.purify_set(value, rules.slice(1,-1));
+      } else if (typeof rules === 'function') {
+         value = rules(value);
       } else if (attribute_name === "class") {
          candidate_values = value.split(' ');
          allowed_values = [];
@@ -248,7 +250,7 @@ var FilterHTML = (function() {
          }
       }
 
-      if (value === '') {
+      if (!value || value === '') {
          return null;
       } else {
          return quote + value + quote;
