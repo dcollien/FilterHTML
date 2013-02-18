@@ -220,10 +220,7 @@ class HTMLFilter(object):
          value = rules(value)
       elif attribute_name == "class":
          candidate_values = value.split(' ')
-         allowed_values = []
-         for candidate in candidate_values:
-            if candidate in rules:
-               allowed_values.append(candidate)
+         allowed_values = [candidate for candidate in candidate_values if candidate in rules]
          value = ' '.join(allowed_values)
       elif value not in rules:
          value = ''
