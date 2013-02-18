@@ -42,33 +42,39 @@ HTML_WHITELIST = {
 			'label-inverse'
 		]
 	},
-
+	
 	'h1': {
+		'name': 'alphanumeric',
 		'class': [
 			'media-heading'
 		]
 	},
 	'h2': {
+		'name': 'alphanumeric',
 		'class': [
 			'media-heading'
 		]
 	},
 	'h3': {
+		'name': 'alphanumeric',
 		'class': [
 			'media-heading'
 		]
 	},
 	'h4': {
+		'name': 'alphanumeric',
 		'class': [
 			'media-heading'
 		]
 	},
 	'h5': {
+		'name': 'alphanumeric',
 		'class': [
 			'media-heading'
 		]
 	},
 	'h6': {
+		'name': 'alphanumeric',
 		'class': [
 			'media-heading'
 		]
@@ -104,8 +110,8 @@ HTML_WHITELIST = {
 	'img': {
 		'src': 'url',
 		'alt': re.compile(r'^[\w\s]+$'),
-		'width': re.compile(r'^\d+(px)*$'),
-		'height': re.compile(r'^\d+(px)*$'),
+		'width': re.compile(r'^\d+(px)?$'),
+		'height': re.compile(r'^\d+(px)?$'),
 		'class': [
 			'media-object',
 			'img-rounded',

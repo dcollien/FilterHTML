@@ -12,7 +12,7 @@ class HTMLFilter(object):
       self.trans_table = TRANS_TABLE
 
       self.html = ''
-      self.filtered_html = ''
+      self.filtered_html = []
 
       self.allowed_tags = spec.keys()
 
@@ -22,17 +22,17 @@ class HTMLFilter(object):
    def filter(self, html):
       self.html = html
       self.chars = self.__char_gen()
-      self.filtered_html = ''
+      self.filtered_html = []
       while self.__next():
          if self.curr_char == '<':
             self.__filter_tag()
          else:
             if self.curr_char == '>':
-               self.filtered_html += '&gt;'
+               self.filtered_html.append('&gt;')
             else:
-               self.filtered_html += self.curr_char
+               self.filtered_html.append(self.curr_char)
 
-      return self.filtered_html
+      return ''.join(self.filtered_html)
 
 
    def __char_gen(self):
@@ -60,44 +60,44 @@ class HTMLFilter(object):
       assert (self.curr_char == '>' or self.curr_char == '')
 
    def __extract_whitespace(self):
-      whitespace = ''
+      whitespace = []
 
       if self.curr_char.isspace():
-         whitespace += self.curr_char
+         whitespace.append(self.curr_char)
          while self.__next().isspace():
-            whitespace += self.curr_char
+            whitespace.append(self.curr_char)
 
-      return whitespace
+      return ''.join(whitespace)
 
    def __extract_tag_name(self):
-      tag_name = ''
+      tag_name = []
 
       if self.curr_char.lower() in self.tag_chars:
-         tag_name += self.curr_char.lower()
+         tag_name.append(self.curr_char.lower())
          while self.__next().lower() in self.tag_chars:
-            tag_name += self.curr_char.lower()
+            tag_name.append(self.curr_char.lower())
 
-      return tag_name
+      return ''.join(tag_name)
 
    def __extract_attribute_name(self):
-      attr_name = ''
+      attr_name = []
 
       if self.curr_char.lower() in self.attr_chars:
-         attr_name += self.curr_char.lower()
+         attr_name.append(self.curr_char.lower())
          while self.__next().lower() in self.attr_chars:
-            attr_name += self.curr_char.lower()
+            attr_name.append(self.curr_char.lower())
 
-      return attr_name
+      return ''.join(attr_name)
 
    def __extract_remaining_tag(self):
-      remaining_tag = ''
+      remaining_tag = []
 
       if self.curr_char != '>':
-         remaining_tag += self.curr_char
+         remaining_tag.append(self.curr_char)
          while self.__next() != '>' and self.curr_char != '':
-            remaining_tag += self.curr_char
+            remaining_tag.append(self.curr_char)
 
-      return remaining_tag
+      return ''.join(remaining_tag)
 
    def __follow_aliases(self, tag_name):
       alias_attributes = []
@@ -124,12 +124,12 @@ class HTMLFilter(object):
                attributes.append(attribute)
 
 
-         self.filtered_html += '<' + tag_name
+         self.filtered_html.append('<' + tag_name)
 
          if len(attributes) > 0:
-            self.filtered_html += ' ' + ' '.join(attributes)
+            self.filtered_html.append(' ' + ' '.join(attributes))
 
-         self.filtered_html += '>'
+         self.filtered_html.append('>')
       else:
          self.__extract_remaining_tag()
 
@@ -142,7 +142,7 @@ class HTMLFilter(object):
       if tag_name in self.allowed_tags:
          self.__extract_whitespace()
          if self.curr_char == '>':
-            self.filtered_html += '</' + tag_name + '>'
+            self.filtered_html.append('</' + tag_name + '>')
             return
       else:
          self.__extract_remaining_tag()
@@ -182,7 +182,7 @@ class HTMLFilter(object):
 
 
    def __filter_value(self, tag_name, attribute_name):
-      value = ''
+      value = []
       quote = '"'
       if self.curr_char == "'" or self.curr_char == '"':
          quote = self.curr_char
@@ -191,13 +191,13 @@ class HTMLFilter(object):
             if self.curr_char == '':
                break
 
-            value += self.curr_char
+            value.append(self.curr_char)
 
          # nom the quote
          self.__next()
 
-
-
+      value = ''.join(value)
+      
       rules = None
       if attribute_name in self.spec[tag_name]:
          rules = self.spec[tag_name][attribute_name]
