@@ -124,7 +124,7 @@ class HTMLFilter(object):
                attributes.append(attribute)
 
 
-         self.filtered_html.append('<' + tag_name)
+         self.filtered_html.append('<%s' % (tag_name,))
 
          if len(attributes) > 0:
             self.filtered_html.append(' ' + ' '.join(attributes))
@@ -142,7 +142,7 @@ class HTMLFilter(object):
       if tag_name in self.allowed_tags:
          self.__extract_whitespace()
          if self.curr_char == '>':
-            self.filtered_html.append('</' + tag_name + '>')
+            self.filtered_html.append('</%s>' % (tag_name,))
             return
       else:
          self.__extract_remaining_tag()
@@ -176,7 +176,7 @@ class HTMLFilter(object):
          is_allowed = False
 
       if is_allowed:
-         return attribute_name + '=' + value
+         return  '%s=%s' % (attribute_name, value)
       else:
          return None
 
@@ -231,7 +231,7 @@ class HTMLFilter(object):
       if value is None or value == '':
          return None
       else:
-         return quote + value + quote
+         return '%s%s%s' % (quote, value, quote)
 
    def purify_url(self, url):
       parts = url.split(':')
@@ -247,7 +247,7 @@ class HTMLFilter(object):
       if scheme == '':
          return url
       elif scheme.lower() in ('http', 'https', 'mailto', 'ftp'):
-         return scheme + ':' + url
+         return '%s:%s' % (scheme, url)
       else:
          return '#'
 
