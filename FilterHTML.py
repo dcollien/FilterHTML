@@ -16,6 +16,12 @@ class HTMLFilter(object):
 
       self.allowed_tags = spec.keys()
 
+      # allow global attributes
+      if '*' in spec:
+         self.global_attrs = spec['*']
+      else:
+         self.global_attrs = None
+
       self.spec = spec
 
 
@@ -201,6 +207,8 @@ class HTMLFilter(object):
       rules = None
       if attribute_name in self.spec[tag_name]:
          rules = self.spec[tag_name][attribute_name]
+      elif self.global_attrs is not None and attribute_name in self.global_attrs:
+         rules = self.global_attrs[attribute_name]
       else:
          return None
 
