@@ -199,7 +199,7 @@ var FilterHTML = (function() {
 
 
    HTMLFilter.prototype.filter_value = function(tag_name, attribute_name) {
-      var value, quote, rules, candidate_values, allowed_values, i;
+      var value, quote, rules, global_rules, new_value;
 
       value = '';
       quote = '"';
@@ -218,12 +218,35 @@ var FilterHTML = (function() {
       }
 
       rules = this.spec[tag_name][attribute_name];
-      if (!rules && this.global_attrs) {
-         rules = this.global_attrs[attribute_name];
+      global_rules = null;
+
+      if (this.global_attrs && this.global_attrs[attribute_name]) {
+         global_rules = this.global_attrs[attribute_name];
       }
-      if (!rules) {
+
+      if (!rules && !global_rules) {
          return null;
       }
+
+      new_value = null;
+
+      if (rules) {
+         new_value = this.purify_attribute(attribute_name, value, rules);
+      }
+
+      if (global_rules && (new_value == null || new_value == '')) {
+         new_value = this.purify_attribute(attribute_name, value, global_rules);
+      }
+
+      if (!new_value || new_value === '') {
+         return null;
+      } else {
+         return quote + new_value + quote;
+      }
+   };
+   
+   HTMLFilter.prototype.purify_attribute = function(attribute_name, value, rules) {
+      var candidate_values, allowed_values, i;
 
       if (rules instanceof RegExp) {
          value = this.purify_regex(value, rules);
@@ -254,11 +277,7 @@ var FilterHTML = (function() {
          }
       }
 
-      if (!value || value === '') {
-         return null;
-      } else {
-         return quote + value + quote;
-      }
+      return value;
    };
 
    HTMLFilter.prototype.purify_url = function(url) {

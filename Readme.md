@@ -63,6 +63,7 @@ Define an allowed HTML subset as a JSON object or Python dictionary, e.g.
 
       // global attributes (allowed on all elements):
       // (N.B. only applies to tags already supplied as keys)
+      // element's specific attributes take precedence, but if they are all filtered out these global rules are applied to the original attribute value
       
       "*": {
         "class": ["text-left", "text-right", "text-centered"]
