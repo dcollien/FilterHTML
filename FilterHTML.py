@@ -317,8 +317,8 @@ def demo():
       },
 
       # allow attributes on all (previously) allowed tags
-      "*": {
-         "attr": ["allowed"]
+      '*': {
+         'style': re.compile(r'^text-align:\s*(left|right|center|justify);?$')
       },
 
       # alias
@@ -328,7 +328,7 @@ def demo():
    }
 
    html = '''
-<div attr="allowed" class="btn">Hello World</div>
+<div style="text-align: center;" class="btn">Hello World</div>
 <script>alert("bad!")</script>
 <unknown>something here</unknown>
 <a href="http://www.google.com" onclick="alert('bad!');">Click</a>
@@ -351,7 +351,7 @@ b < 3
 '''
 
    expected = '''
-<div attr="allowed" class="btn">Hello World</div>
+<div style="text-align: center;" class="btn">Hello World</div>
 alert("bad!")
 something here
 <a href="http://www.google.com">Click</a>
