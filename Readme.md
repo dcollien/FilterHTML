@@ -61,11 +61,18 @@ Define an allowed HTML subset as a JSON object or Python dictionary, e.g.
         "class": /^icon-[a-z0-9_]+$/
       },
 
-      // aliases:
+      // global attributes (allowed on all elements):
+      // (N.B. only applies to tags already supplied as keys)
+      
+      "*": {
+        "class": ["text-left", "text-right", "text-centered"]
+      },
+
+      // aliases (convert one tag to another):
 
       // convert <b> tags to <strong> tags
       "b": "strong",
 
-      // convert <center> tags to <p class="centered"> tags
-      "center": "p class=\"centered\""
+      // convert <center> tags to <p class="text-centered"> tags
+      "center": "p class=\"text-centered\""
     }

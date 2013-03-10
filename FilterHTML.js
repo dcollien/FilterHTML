@@ -8,6 +8,7 @@ var FilterHTML = (function() {
       this.html = '';
       this.filtered_html = '';
       this.spec = spec;
+      this.global_attrs = spec['*'];
    };
 
    HTMLFilter.prototype.filter = function(html) {
@@ -172,8 +173,8 @@ var FilterHTML = (function() {
       
       whitespace = this.extract_whitespace();
 
-      is_allowed = !!tag_spec[attribute_name];
-
+      is_allowed = (!!tag_spec[attribute_name]) || (!!this.global_attrs[attribute_name]);
+      
       value = null;
       if (this.curr_char === '=') {
          this.next();
@@ -217,6 +218,9 @@ var FilterHTML = (function() {
       }
 
       rules = this.spec[tag_name][attribute_name];
+      if (!rules && this.global_attrs) {
+         rules = this.global_attrs[attribute_name];
+      }
       if (!rules) {
          return null;
       }
