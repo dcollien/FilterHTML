@@ -173,8 +173,8 @@ var FilterHTML = (function() {
       
       whitespace = this.extract_whitespace();
 
-      is_allowed = !!tag_spec[attribute_name];
-
+      is_allowed = (!!tag_spec[attribute_name]) || (!!this.global_attrs[attribute_name]);
+      
       value = null;
       if (this.curr_char === '=') {
          this.next();

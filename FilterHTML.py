@@ -160,7 +160,7 @@ class HTMLFilter(object):
       
       whitespace = self.__extract_whitespace()
 
-      is_allowed = attribute_name in allowed_attributes
+      is_allowed = (attribute_name in allowed_attributes) or (attribute_name in self.global_attrs)
 
       assignment = ''
       value = None
@@ -232,7 +232,7 @@ class HTMLFilter(object):
          value = ' '.join(allowed_values)
       elif value not in rules:
          value = ''
-      
+
       if value is None or value == '':
          return None
       else:
@@ -316,6 +316,11 @@ def demo():
          ]
       },
 
+      # allow attributes on all (previously) allowed tags
+      "*": {
+         "attr": ["allowed"]
+      },
+
       # alias
       "b": "strong",
       "center": "p class=\"centered\""
@@ -323,7 +328,7 @@ def demo():
    }
 
    html = '''
-<div class="btn">Hello World</div>
+<div attr="allowed" class="btn">Hello World</div>
 <script>alert("bad!")</script>
 <unknown>something here</unknown>
 <a href="http://www.google.com" onclick="alert('bad!');">Click</a>
@@ -346,7 +351,7 @@ b < 3
 '''
 
    expected = '''
-<div class="btn">Hello World</div>
+<div attr="allowed" class="btn">Hello World</div>
 alert("bad!")
 something here
 <a href="http://www.google.com">Click</a>
