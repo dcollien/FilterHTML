@@ -1,6 +1,7 @@
 from setuptools import setup
 
-setup(name='FilterHTML',
+setup(
+   name='FilterHTML',
    version='0.0.1',
    py_modules=['FilterHTML'],
    author='David Collien',
