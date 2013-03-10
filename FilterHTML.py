@@ -188,7 +188,7 @@ class HTMLFilter(object):
 
 
    def __filter_value(self, tag_name, attribute_name):
-      value = []
+      value_chars = []
       quote = '"'
       if self.curr_char == "'" or self.curr_char == '"':
          quote = self.curr_char
@@ -197,21 +197,43 @@ class HTMLFilter(object):
             if self.curr_char == '':
                break
 
-            value.append(self.curr_char)
+            value_chars.append(self.curr_char)
 
          # nom the quote
          self.__next()
 
-      value = ''.join(value)
+      value = ''.join(value_chars)
       
       rules = None
+      global_rules = None
+
+      # retrieve element-specific rules for this attribute
       if attribute_name in self.spec[tag_name]:
          rules = self.spec[tag_name][attribute_name]
-      elif self.global_attrs is not None and attribute_name in self.global_attrs:
-         rules = self.global_attrs[attribute_name]
-      else:
+
+      # retrieve rules for this attribute global to all elements
+      if self.global_attrs is not None and attribute_name in self.global_attrs:
+         global_rules = self.global_attrs[attribute_name]
+      
+      # at least some rules must exist to continue
+      if rules is None and global_rules is None:
          return None
 
+      new_value = None
+      # purify the attribute value using the element-specific rules
+      if rules is not None:
+         new_value = self.__purify_attribute(attribute_name, value, rules)
+
+      # if it filtered out the value, try the global rules for this attribute
+      if global_rules is not None and (new_value is None or new_value == ''):
+         new_value = self.__purify_attribute(attribute_name, value, global_rules)
+
+      if new_value is None or new_value == '':
+         return None
+      else:
+         return '%s%s%s' % (quote, new_value, quote)
+
+   def __purify_attribute(self, attribute_name, value, rules):
       if isinstance(rules, re._pattern_type):
          value = self.purify_regex(value, rules)
       elif rules == "url":
@@ -233,10 +255,7 @@ class HTMLFilter(object):
       elif value not in rules:
          value = ''
 
-      if value is None or value == '':
-         return None
-      else:
-         return '%s%s%s' % (quote, value, quote)
+      return value
 
    def purify_url(self, url):
       parts = url.split(':')
