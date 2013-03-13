@@ -2,3 +2,15 @@
 .DS_Store
 
 *.pyc
+
+FilterHTML.egg-info/PKG-INFO
+
+FilterHTML.egg-info/SOURCES.txt
+
+FilterHTML.egg-info/top_level.txt
+
+FilterHTML.egg-info/dependency_links.txt
+
+build/lib/FilterHTML.py
+
+dist/FilterHTML-0.0.2-py2.7.egg
