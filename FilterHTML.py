@@ -234,6 +234,26 @@ class HTMLFilter(object):
          return '%s%s%s' % (quote, new_value, quote)
 
    def __purify_attribute(self, attribute_name, value, rules):
+      
+      value, purified = self.purify_value(value, rules)
+
+      if not purified:
+         if attribute_name == "class":
+            candidate_values = value.split(' ')
+            allowed_values = [candidate for candidate in candidate_values if candidate in rules]
+            value = ' '.join(allowed_values)
+         elif attribute_name == "style" and isinstance(rules, dict):
+            candidate_values = value.split(';')
+            allowed_values = [self.purify_style(style, rules) for style in candidate_values]
+            allowed_values = [style_value for style_value in allowed_values if style_value]
+            value = ';'.join(allowed_values) + ';'
+         elif value not in rules:
+            value = ''
+
+      return value
+
+   def purify_value(self, value, rules):
+      purified = True
       if isinstance(rules, re._pattern_type):
          value = self.purify_regex(value, rules)
       elif rules == "url":
@@ -248,14 +268,32 @@ class HTMLFilter(object):
          value = self.purify_set(value, rules[1:-1])
       elif callable(rules):
          value = rules(value)
-      elif attribute_name == "class":
-         candidate_values = value.split(' ')
-         allowed_values = [candidate for candidate in candidate_values if candidate in rules]
-         value = ' '.join(allowed_values)
-      elif value not in rules:
-         value = ''
+      else:
+         purified = False
 
-      return value
+      return value, purified
+
+   def purify_style(self, style, rules):
+      assert isinstance(rules, dict)
+
+      parts = style.split(':')
+
+      if len(parts) != 2:
+         return None
+
+      name = parts[0].strip()
+      value = parts[1].strip()
+
+      if name in rules:
+         style_rules = rules[name]
+         value, purified = self.purify_value(value, style_rules)
+         if not purified:
+            if value not in style_rules:
+               return None
+      else:
+         return None
+
+      return ': '.join([name, value])
 
    def purify_url(self, url):
       parts = url.split(':')
@@ -329,10 +367,17 @@ def demo():
       "i": {
          "class": re.compile('^icon-[a-z0-9_]+$')
       },
+      "span": {
+         "style": ["color: red;"]
+      },
       "p": {
          "class": [
             "centered"
-         ]
+         ],
+         # special style parsing
+         "style": {
+            "color": re.compile(r'^#[0-9A-Fa-f]{6}$')
+         }
       },
 
       # allow attributes on all (previously) allowed tags
@@ -358,7 +403,8 @@ def demo():
 <input type="hidden" value="dog42" name="my-dog">
 <input type="not allowed" value="xxx" name="_+_">
 <b>Hello</b>
-<p style="display:none">Text</p>
+<span style="color: red;">Red</span>
+<p style="display:none; color: #00ff00;">Text</p>
 <i class="icon-hello"></i>
 <i class="icon-"></i>
 <i class="icon->"></i>
@@ -381,7 +427,8 @@ something here
 <input type="hidden" value="dog42" name="my-dog">
 <input value="xxx">
 <strong>Hello</strong>
-<p>Text</p>
+<span style="color: red;">Red</span>
+<p style="color: #00ff00;">Text</p>
 <i class="icon-hello"></i>
 <i></i>
 <i></i>

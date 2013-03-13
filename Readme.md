@@ -21,7 +21,11 @@ Define an allowed HTML subset as a JSON object or Python dictionary, e.g.
       "p": {
         "class": [
            "centered"
-        ]
+        ],
+        // style parsing
+        "style": {
+          "color": re.compile(r'^#[0-9A-Fa-f]{6}$')
+        }
       },
 
       "a": {
