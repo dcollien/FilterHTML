@@ -264,8 +264,9 @@ var FilterHTML = (function() {
             value = allowed_values.join(' ');
          } else if (attribute_name === "style" && Object.prototype.toString.call(rules) == '[object Object]') {
             candidate_values = value.split(';');
+            allowed_values = [];
             for (i = 0; i != candidate_values.length; ++i) {
-               pure_value = self.purify_style(style, rules);
+               pure_value = this.purify_style(candidate_values[i], rules);
                if (pure_value !== '' && pure_value != null) {
                   allowed_values.push(pure_value);
                }
@@ -304,7 +305,7 @@ var FilterHTML = (function() {
       return [value, purified];
    };
 
-   HTMLFilter.prototype.purify_style(style, rules) {
+   HTMLFilter.prototype.purify_style = function(style, rules) {
       var parts, name, value, style_rules, isPurified;
 
       parts = style.split(':');
@@ -394,106 +395,8 @@ var FilterHTML = (function() {
       return html_filter.filter(html);
    };
 
-   var demo = function() {
-      var spec, html, expected, filtered;
-      spec = {
-         "div": {
-            "class": [
-               "btn",
-               "container"
-            ]
-         },
-         "a": {
-            "href": "url",
-            "target": [
-               "_blank"
-            ]
-         },
-         "img": {
-            "src": "url",
-            "border": "int",
-            "width": "int",
-            "height": "int"
-         },
-         "input": {
-            "type": "alpha",
-            "name": "[abcdefghijklmnopqrstuvwxyz-]",
-            "value": "alphanumeric"
-         },
-         "hr": {},
-         "br": {},
-         "strong": {},
-         "i": {
-            "class": /^icon-[a-z0-9_]+$/
-         },
-         "p": {
-            "class": [
-               "centered"
-            ]
-         },
-
-         // alias
-         "b": "strong",
-         "center": "p class=\"centered\""
-
-      };
-
-      html = '\
-   <div class="btn">Hello World</div>\
-   <script>alert("bad!")</script>\
-   <unknown>something here</unknown>\
-   <a href="http://www.google.com" onclick="alert(\'bad!\');">Click</a>\
-   <div foo="bah"></div>\
-   <a href="javascript:alert(\'bad!\')">Foo</a>\
-   <div class="foo"></div><a href="#:x"></a>\
-   <img src="./foo.png" border="0" width="20" height="20">\
-   <input type="hidden" value="dog42" name="my-dog">\
-   <input type="not allowed" value="xxx" name="_+_">\
-   <b>Hello</b>\
-   <p style="display:none">Text</p>\
-   <i class="icon-hello"></i>\
-   <i class="icon-"></i>\
-   <i class="icon->"></i>\
-   <center>This is Centered</center>\
-   <hr/>\
-   <jun<><FJ = ">"< d09"> <a =<> <junk<>><>\
-   a > 5\
-   b < 3';
-
-      expected = '\
-   <div class="btn">Hello World</div>\
-   alert("bad!")\
-   something here\
-   <a href="http://www.google.com">Click</a>\
-   <div></div>\
-   <a href="#">Foo</a>\
-   <div></div><a href="#"></a>\
-   <img src="./foo.png" border="0" width="20" height="20">\
-   <input type="hidden" value="dog42" name="my-dog">\
-   <input value="xxx">\
-   <strong>Hello</strong>\
-   <p>Text</p>\
-   <i class="icon-hello"></i>\
-   <i></i>\
-   <i></i>\
-   <p class="centered">This is Centered</p>\
-   <hr>\
-   " <a> &gt;\
-   a &gt; 5\
-   b';
-      
-      filtered = filter_html(html, spec);
-
-      if (console.log) {
-         console.log(filtered);
-      }
-
-      return (filtered.trim() === expected.trim());
-   };
-
    return {
-      'filter': filter_html
-      //'demo': demo
+      'filter_html': filter_html
    };
 })();
 
