@@ -246,8 +246,43 @@ var FilterHTML = (function() {
    };
    
    HTMLFilter.prototype.purify_attribute = function(attribute_name, value, rules) {
-      var candidate_values, allowed_values, i;
+      var candidate_values, allowed_values, i, isPurified, parts, pure_value;
 
+      parts = this.purify_value(value, rules);
+      value = parts[0];
+      isPurified = parts[1];
+
+      if (!isPurified) {
+         if (attribute_name === "class") {
+            candidate_values = value.split(' ');
+            allowed_values = [];
+            for (i = 0; i != candidate_values.length; ++i) {
+               if (rules.indexOf(candidate_values[i]) >= 0) {
+                  allowed_values.push(candidate_values[i]);
+               }
+            }
+            value = allowed_values.join(' ');
+         } else if (attribute_name === "style" && Object.prototype.toString.call(rules) == '[object Object]') {
+            candidate_values = value.split(';');
+            for (i = 0; i != candidate_values.length; ++i) {
+               pure_value = self.purify_style(style, rules);
+               if (pure_value !== '' && pure_value != null) {
+                  allowed_values.push(pure_value);
+               }
+            }
+            value = allowed_values.join(';') + ';';
+         } else if (rules.length > 0) {
+            if (rules.indexOf(value) < 0) {
+               value = '';
+            }
+         }
+      }
+
+      return value;
+   };
+
+   HTMLFilter.prototype.purify_value = function(value, rules) {
+      var purified = true;
       if (rules instanceof RegExp) {
          value = this.purify_regex(value, rules);
       } else if (rules === "url") {
@@ -262,22 +297,41 @@ var FilterHTML = (function() {
          value = this.purify_set(value, rules.slice(1,-1));
       } else if (typeof rules === 'function') {
          value = rules(value);
-      } else if (attribute_name === "class") {
-         candidate_values = value.split(' ');
-         allowed_values = [];
-         for (i = 0; i != candidate_values.length; ++i) {
-            if (rules.indexOf(candidate_values[i]) >= 0) {
-               allowed_values.push(candidate_values[i]);
-            }
-         }
-         value = allowed_values.join(' ');
-      } else if (rules.length > 0) {
-         if (rules.indexOf(value) < 0) {
-            value = '';
-         }
+      } else {
+         purified = false;
       }
 
-      return value;
+      return [value, purified];
+   };
+
+   HTMLFilter.prototype.purify_style(style, rules) {
+      var parts, name, value, style_rules, isPurified;
+
+      parts = style.split(':');
+
+      if (parts.length !== 2) {
+         return null;
+      }
+
+      name = parts[0].trim()
+      value = parts[1].trim()
+
+      if (rules[name]) {
+         style_rules = rules[name];
+         parts = this.purify_value(value, style_rules);
+         value = parts[0];
+         isPurified = parts[1];
+
+         if (!isPurified) {
+            if (style_rules.indexOf(value) < 0) {
+               return null;
+            }
+         }
+      } else {
+         return null;
+      }
+
+      return name + ': ' + value;
    };
 
    HTMLFilter.prototype.purify_url = function(url) {
