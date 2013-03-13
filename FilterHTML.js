@@ -304,7 +304,7 @@ var FilterHTML = (function() {
       return [value, purified];
    };
 
-   HTMLFilter.prototype.purify_style(style, rules) {
+   HTMLFilter.prototype.purify_style = function(style, rules) {
       var parts, name, value, style_rules, isPurified;
 
       parts = style.split(':');
