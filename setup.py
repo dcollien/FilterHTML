@@ -2,10 +2,10 @@ from setuptools import setup
 
 setup(
    name='FilterHTML',
-   version='0.0.4',
+   version='0.0.5',
    py_modules=['FilterHTML'],
    author='David Collien',
-   author_email='david@openlearning.com',
+   author_email='me@dcollien.com',
    url='http://dcollien.github.com/FilterHTML/',
    license='MIT',
    description='FilterHTML: A whitelisting HTML filter',
