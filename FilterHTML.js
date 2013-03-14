@@ -4,13 +4,19 @@ var FilterHTML = (function() {
    var ATTR_REGEX = /^[a-z\-]$/;
    var WHITESPACE_REGEX = /^\s$/;
 
-   var HTMLFilter = function(spec) {
+   var HTMLFilter = function(spec, allowed_schemes) {
       this.html = '';
       this.filtered_html = '';
       this.spec = spec;
       this.global_attrs = spec['*'];
+      
+      if (allowed_schemes) {
+         this.allowed_schemes = allowed_schemes;
+      } else {
+         this.allowed_schemes = ['http', 'https', 'mailto', 'ftp'];
+      }
    };
-
+   
    HTMLFilter.prototype.filter = function(html) {
       this.html = html;
       this.filtered_html = '';
@@ -355,7 +361,7 @@ var FilterHTML = (function() {
       }
 
 
-      allowed_scheme = ['http', 'https', 'mailto', 'ftp'].indexOf(scheme.toLowerCase()) >= 0;
+      allowed_scheme = this.allowed_schemes.indexOf(scheme.toLowerCase()) >= 0;
 
       if (scheme === '') {
          return url;
