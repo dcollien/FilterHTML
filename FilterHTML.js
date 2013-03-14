@@ -271,7 +271,11 @@ var FilterHTML = (function() {
                   allowed_values.push(pure_value);
                }
             }
-            value = allowed_values.join(';') + ';';
+            if (allowed_values.length > 0) {
+               value = allowed_values.join(';') + ';';
+            } else {
+               value = '';
+            }
          } else if (rules.length > 0) {
             if (rules.indexOf(value) < 0) {
                value = '';
