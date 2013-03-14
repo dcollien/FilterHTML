@@ -246,7 +246,11 @@ class HTMLFilter(object):
             candidate_values = value.split(';')
             allowed_values = [self.purify_style(style, rules) for style in candidate_values]
             allowed_values = [style_value for style_value in allowed_values if style_value]
-            value = ';'.join(allowed_values) + ';'
+
+            if len(allowed_values) > 0:
+               value = ';'.join(allowed_values) + ';'
+            else:
+               value = ''
          elif value not in rules:
             value = ''
 
