@@ -6,6 +6,11 @@ A dictionary-defined whitelisting HTML filter. Useful for filtering HTML to leav
 
 Python and JavaScript versions
 
+Python installation:
+    
+    pip install FilterHTML
+
+
 Define an allowed HTML subset as a JSON object or Python dictionary, e.g.
 
     spec = {

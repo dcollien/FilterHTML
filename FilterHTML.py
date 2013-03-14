@@ -6,10 +6,12 @@ TAG_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz123456")
 ATTR_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz-")
 
 class HTMLFilter(object):
-   def __init__(self, spec):
+   def __init__(self, spec, allowed_schemes=('http', 'https', 'mailto', 'ftp')):
       self.tag_chars = TAG_CHARS
       self.attr_chars = ATTR_CHARS
       self.trans_table = TRANS_TABLE
+
+      self.allowed_schemes = allowed_schemes
 
       self.html = ''
       self.filtered_html = []
@@ -312,7 +314,7 @@ class HTMLFilter(object):
 
       if scheme == '':
          return url
-      elif scheme.lower() in ('http', 'https', 'mailto', 'ftp'):
+      elif scheme.lower() in self.allowed_schemes:
          return '%s:%s' % (scheme, url)
       else:
          return '#'
