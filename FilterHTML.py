@@ -4,6 +4,7 @@ import string
 TRANS_TABLE = string.maketrans('','')
 TAG_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz123456")
 ATTR_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz-")
+UNICODE_REGEX = re.compile(r'^.*&#.*$')
 
 class HTMLFilter(object):
    def __init__(self, spec, allowed_schemes=('http', 'https', 'mailto', 'ftp')):
@@ -302,6 +303,10 @@ class HTMLFilter(object):
       return ': '.join([name, value])
 
    def purify_url(self, url):
+      # disallow &# in urls (can be used for encoding disallowed characters)
+      if UNICODE_REGEX.match(url):
+         return '#'
+
       parts = url.split(':')
       scheme = ''
       if len(parts) > 1:

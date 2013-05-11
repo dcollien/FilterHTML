@@ -3,6 +3,7 @@ var FilterHTML = (function() {
    var TAG_REGEX = /^[a-z1-6]$/;
    var ATTR_REGEX = /^[a-z\-]$/;
    var WHITESPACE_REGEX = /^\s$/;
+   var UNICODE_REGEX = /^.*&#.*$/;
 
    var HTMLFilter = function(spec, allowed_schemes) {
       this.html = '';
@@ -348,6 +349,11 @@ var FilterHTML = (function() {
    HTMLFilter.prototype.purify_url = function(url) {
       var parts, scheme, allowed_scheme;
 
+      // disallow &# in urls (can be used for encoding disallowed characters)
+      if (UNICODE_REGEX.text(url)) {
+         return '#'
+      }
+      
       parts = url.split(':');
       scheme = '';
       if (parts.length > 1) {
