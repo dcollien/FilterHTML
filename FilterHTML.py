@@ -23,7 +23,7 @@ class HTMLFilter(object):
       if '*' in spec:
          self.global_attrs = spec['*']
       else:
-         self.global_attrs = None
+         self.global_attrs = []
 
       self.spec = spec
 
@@ -215,7 +215,7 @@ class HTMLFilter(object):
          rules = self.spec[tag_name][attribute_name]
 
       # retrieve rules for this attribute global to all elements
-      if self.global_attrs is not None and attribute_name in self.global_attrs:
+      if attribute_name in self.global_attrs:
          global_rules = self.global_attrs[attribute_name]
       
       # at least some rules must exist to continue
