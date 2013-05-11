@@ -351,9 +351,9 @@ var FilterHTML = (function() {
 
       // disallow &# in urls (can be used for encoding disallowed characters)
       if (UNICODE_REGEX.text(url)) {
-         return '#'
+         return '#';
       }
-      
+
       parts = url.split(':');
       scheme = '';
       if (parts.length > 1) {
