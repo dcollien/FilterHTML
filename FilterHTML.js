@@ -350,7 +350,7 @@ var FilterHTML = (function() {
       var parts, scheme, allowed_scheme;
 
       // disallow &# in urls (can be used for encoding disallowed characters)
-      if (UNICODE_REGEX.text(url)) {
+      if (UNICODE_REGEX.test(url)) {
          return '#';
       }
 
