@@ -68,7 +68,7 @@ Define an allowed HTML subset as a JSON object or Python dictionary, e.g.
       "i": {
         # use a regex match
         # in javascript you can use /this style/ regex.
-        "class": re.compile(r"^icon-[a-z0-9_]+$/")
+        "class": re.compile(r'^icon-[a-z0-9_]+$/')
       },
 
       # global attributes (allowed on all elements):
