@@ -5,6 +5,7 @@ TRANS_TABLE = string.maketrans('','')
 TAG_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz123456")
 ATTR_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz-")
 UNICODE_ESCAPE = '&#'
+CSS_ESCAPE = re.compile(r'^.*\\[0-9A-Fa-f].*$')
 
 class HTMLFilter(object):
    def __init__(self, spec, allowed_schemes=('http', 'https', 'mailto', 'ftp')):
@@ -247,7 +248,11 @@ class HTMLFilter(object):
             value = ' '.join(allowed_values)
          elif attribute_name == "style" and isinstance(rules, dict):
             candidate_values = value.split(';')
+
+            # map purify_style over each style
             allowed_values = [self.purify_style(style, rules) for style in candidate_values]
+            
+            # filter out invalid styles
             allowed_values = [style_value for style_value in allowed_values if style_value]
 
             if len(allowed_values) > 0:
@@ -261,7 +266,11 @@ class HTMLFilter(object):
 
    def purify_value(self, value, rules):
       purified = True
-      if isinstance(rules, re._pattern_type):
+
+      if UNICODE_ESCAPE in value:
+         # disallow &# in values (can be used for encoding disallowed characters)
+         value = None
+      elif isinstance(rules, re._pattern_type):
          value = self.purify_regex(value, rules)
       elif rules == "url":
          value = self.purify_url(value)
@@ -291,22 +300,24 @@ class HTMLFilter(object):
       name = parts[0].strip()
       value = parts[1].strip()
 
+      if CSS_ESCAPE.match(value):
+         # disallow CSS unicode escaping
+         return None
+
       if name in rules:
          style_rules = rules[name]
          value, purified = self.purify_value(value, style_rules)
          if not purified:
             if value not in style_rules:
                return None
+         elif value is None or value == '':
+            return None
       else:
          return None
 
       return ': '.join([name, value])
 
    def purify_url(self, url):
-      # disallow &# in urls (can be used for encoding disallowed characters)
-      if UNICODE_ESCAPE in url:
-         return '#'
-
       parts = url.split(':')
       scheme = ''
       if len(parts) > 1:

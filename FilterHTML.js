@@ -4,7 +4,8 @@ var FilterHTML = (function() {
    var ATTR_REGEX = /^[a-z\-]$/;
    var WHITESPACE_REGEX = /^\s$/;
    var UNICODE_REGEX = /^.*&#.*$/;
-
+   var CSS_ESCAPE = /^.*\\[0-9A-Fa-f].*$/;
+   
    var HTMLFilter = function(spec, allowed_schemes) {
       this.html = '';
       this.filtered_html = '';
@@ -295,7 +296,11 @@ var FilterHTML = (function() {
 
    HTMLFilter.prototype.purify_value = function(value, rules) {
       var purified = true;
-      if (rules instanceof RegExp) {
+      
+      // disallow &# in values (can be used for encoding disallowed characters)
+      if (UNICODE_REGEX.test(url)) {
+         return null;
+      } else if (rules instanceof RegExp) {
          value = this.purify_regex(value, rules);
       } else if (rules === "url") {
          value = this.purify_url(value);
@@ -328,6 +333,11 @@ var FilterHTML = (function() {
       name = parts[0].trim()
       value = parts[1].trim()
 
+      if (CSS_ESCAPE.test(value)) {
+         // disallow CSS unicode escaping
+         return null;
+      }
+
       if (rules[name]) {
          style_rules = rules[name];
          parts = this.purify_value(value, style_rules);
@@ -338,6 +348,8 @@ var FilterHTML = (function() {
             if (style_rules.indexOf(value) < 0) {
                return null;
             }
+         } else if (value === null || value === '') {
+            return null;
          }
       } else {
          return null;
@@ -348,11 +360,6 @@ var FilterHTML = (function() {
 
    HTMLFilter.prototype.purify_url = function(url) {
       var parts, scheme, allowed_scheme;
-
-      // disallow &# in urls (can be used for encoding disallowed characters)
-      if (UNICODE_REGEX.test(url)) {
-         return '#';
-      }
 
       parts = url.split(':');
       scheme = '';
