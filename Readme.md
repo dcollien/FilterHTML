@@ -12,7 +12,7 @@ Python installation:
 
 What this does:
  - Lets you easily define a subset of HTML and it filters out everything else
- - Ensures there's no unicode encoding in attributes (e.g. &#58; or \3A for CSS)
+ - Ensures there's no unicode encoding in attributes (e.g. &amp;#58; or \3A for CSS)
  - Lets you use regular expressions, lists, functions or built-ins as rules/filters
  - Lets you filter or match attributes on tags
  - Lets you filter or match individual CSS styles in style attributes
