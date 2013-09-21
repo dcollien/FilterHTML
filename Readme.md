@@ -20,11 +20,12 @@ What this does:
  - Has a "url" built-in for checking allowed schemes (e.g. http, https, mailto, ftp)
  - Lets you use your own functions to check attributes (if you need tighter control)
  - Helps to reduce XSS/code injection vulnerabilities
- - Runs in Python or Javascript (the JS port is available for client-side checking if you want)
+ - Runs server-side in Python (e.g. Flask, Bottle, Django) or Javascript (e.g. Node) 
+ - The Javascript port can also be used for client-side filtering
 
 What this doesn't do:
  - Clean up tag soup (use something else for that, like BeautifulSoup): this assumes the HTML is valid and complete
- - Claim to be XSS-safe out of the box: it relies on you being somewhat careful with your whitelist specification
+ - Claim to be XSS-safe out of the box: be careful with your whitelist specification and test it thoroughly (here's a handy resource: https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet)
 
 
 Define an allowed HTML subset as a JSON object (for the JS version) or a Python dictionary, e.g.
