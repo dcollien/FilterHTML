@@ -28,7 +28,12 @@ What this doesn't do:
  - Claim to be XSS-safe out of the box: be careful with your whitelist specification and test it thoroughly (here's a handy resource: https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet)
 
 
-Define an allowed HTML subset as a JSON object (for the JS version) or a Python dictionary, e.g.
+### Whitelist
+Define an allowed HTML subset as a JSON object (for the JS version) or a Python dictionary.
+
+In JavaScript you can use /pattern/modifiers syntax (or new RegExp), or in Python: re.compile() in order to define regular expression filters.
+
+e.g.
 
     spec = {
 
