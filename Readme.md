@@ -10,8 +10,30 @@ Python installation:
     
     pip install FilterHTML
 
+What this does:
+ - Lets you easily define a subset of HTML and it filters out everything else
+ - Ensures there's no unicode encoding in attributes (e.g. &amp;#58; or \3A for CSS)
+ - Lets you use regular expressions, lists, functions or built-ins as rules/filters
+ - Lets you filter or match attributes on tags
+ - Lets you filter or match individual CSS styles in style attributes
+ - Lets you define allowed classes as a list
+ - Has a "url" built-in for checking allowed schemes (e.g. http, https, mailto, ftp)
+ - Lets you use your own functions to check attributes (if you need tighter control)
+ - Helps to reduce XSS/code injection vulnerabilities
+ - Runs server-side in Python (e.g. Flask, Bottle, Django) or Javascript (e.g. Node) 
+ - The Javascript port can also be used for client-side filtering
 
-Define an allowed HTML subset as a JSON object or Python dictionary, e.g.
+What this doesn't do:
+ - Clean up tag soup (use something else for that, like BeautifulSoup): this assumes the HTML is valid and complete
+ - Claim to be XSS-safe out of the box: be careful with your whitelist specification and test it thoroughly (here's a handy resource: https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet)
+
+
+### Whitelist
+Define an allowed HTML subset as a JSON object (for the JS version) or a Python dictionary.
+
+In JavaScript you can use /pattern/modifiers syntax (or new RegExp), or in Python: re.compile() in order to define regular expression filters.
+
+e.g.
 
     spec = {
 
