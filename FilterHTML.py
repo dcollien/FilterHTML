@@ -342,11 +342,16 @@ class HTMLFilter(object):
          return ''
 
    def purify_set(self, value, allowed_chars):
-      if value.translate(self.trans_table, allowed_chars):
-         return ''
+      if isinstance(value, unicode) or isinstance(allowed_chars, unicode):
+         translation_table = dict.fromkeys(map(ord, allowed_chars), None)
+         if value.translate(translation_table):
+            value = ''
       else:
-         return value
+         if value.translate(self.trans_table, allowed_chars):
+            value = ''
 
+      return value
+   
    def purify_regex(self, value, regex):
       if regex.match(value):
          return value
