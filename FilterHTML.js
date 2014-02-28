@@ -298,7 +298,7 @@ var FilterHTML = (function() {
       var purified = true;
       
       // disallow &# in values (can be used for encoding disallowed characters)
-      if (UNICODE_REGEX.test(url)) {
+      if (UNICODE_REGEX.test(value)) {
          return null;
       } else if (rules instanceof RegExp) {
          value = this.purify_regex(value, rules);
