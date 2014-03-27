@@ -33,8 +33,7 @@ VOID_ELEMENTS = [
 HTML_ESCAPE_CHARS = {
    '>': '&gt;',
    '<': '&lt;',
-   '"': '&quot;',
-   '&': '&amp;'
+   '"': '&quot;'
 }
 
 class TagMismatchError(Exception):

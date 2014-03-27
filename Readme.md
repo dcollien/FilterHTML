@@ -19,7 +19,7 @@ What this does:
  - Lets you define allowed classes as a list
  - Has a "url" built-in for checking allowed schemes (e.g. http, https, mailto, ftp)
  - Lets you use your own function delegates to check attributes (if you need tighter control)
- - Lets you specify a filtering function delegate for modifying text between tags (e.g. auto-linking), the output is also HTML filtered
+ - Lets you specify a filtering function delegate for modifying text between tags (e.g. url auto-linking, emoticon parsing, #tagging, @mentioning, etc.), the output is also HTML filtered
  - Helps to reduce XSS/code injection vulnerabilities
  - Runs server-side in Python (e.g. Flask, Bottle, Django) or Javascript (e.g. Node) 
  - The Javascript port can also be used for client-side filtering

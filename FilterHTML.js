@@ -31,8 +31,7 @@ var FilterHTML = (function() {
    var HTML_ESCAPE_CHARS = {
       '>': '&gt;',
       '<': '&lt;',
-      '"': '&quot;',
-      '&': '&amp;'
+      '"': '&quot;'
    };
 
    var HTMLFilter = function(spec, allowed_schemes, text_filter) {
