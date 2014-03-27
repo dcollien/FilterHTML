@@ -24,3 +24,5 @@ dist/FilterHTML-0.0.3.tar.gz
 *.egg
 
 *.gz
+
+*.exe

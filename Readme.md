@@ -122,7 +122,8 @@ N.B. the output HTML of the urlize function is also HTML filtered using the same
         r'\b(?:f|ht)tps?://[^)<>\s]+[^.,)<>\s]',
     ])
 
-    # second argument is a list of tags which this text is inside, each element a tuple: (tag_name, attributes)
+    # second argument is a list of tags which this text is inside,
+    # each element a tuple: (tag_name, attributes)
     def urlize(text, stack):
       is_inside_a_tag = False
       for tag in stack:
