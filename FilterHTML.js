@@ -5,8 +5,37 @@ var FilterHTML = (function() {
    var WHITESPACE_REGEX = /^\s$/;
    var UNICODE_REGEX = /^.*&#.*$/;
    var CSS_ESCAPE = /^.*\\[0-9A-Fa-f].*$/;
-   
-   var HTMLFilter = function(spec, allowed_schemes) {
+   var VOID_ELEMENTS = [
+      'area',
+      'base',
+      'br',
+      'col',
+      'command',
+      'embed',
+      'hr',
+      'img',
+      'input',
+      'keygen',
+      'link',
+      'meta',
+      'param',
+      'source',
+      'track',
+      'wbr',
+
+      'basefont',
+      'bgsound',
+      'frame',
+      'isindex'
+   ];
+   var HTML_ESCAPE_CHARS = {
+      '>': '&gt;',
+      '<': '&lt;',
+      '"': '&quot;',
+      '&': '&amp;'
+   };
+
+   var HTMLFilter = function(spec, allowed_schemes, text_filter) {
       this.html = '';
       this.filtered_html = '';
       this.spec = spec;
@@ -17,30 +46,78 @@ var FilterHTML = (function() {
       } else {
          this.allowed_schemes = ['http', 'https', 'mailto', 'ftp'];
       }
+
+      if (text_filter) {
+         this.text_filter = text_filter;
+      } else {
+         this.text_filter = null;
+      }
    };
    
    HTMLFilter.prototype.filter = function(html) {
+      var tags, i;
+
+      this.row = 0;
+      this.line = 0;
+
       this.html = html;
       this.filtered_html = '';
       this.curr_index = 0;
+      this.tag_stack = [];
+
+      text_chars = '';
       while (this.next()) {
          if (this.curr_char === '<') {
+            this.filter_text(text_chars);
+            text_chars = '';
+
             this.filter_tag();
          } else {
-            if (this.curr_char === '>') {
-               this.filtered_html += '&gt;';
+            if (HTML_ESCAPE_CHARS[this.curr_char]) {
+               text_chars += HTML_ESCAPE_CHARS[this.curr_char];
             } else {
-               this.filtered_html += this.curr_char;
+               text_chars += this.curr_char;
             }
          }
+      }
+
+      this.filter_text(text_chars);
+
+      if (this.tag_stack.length !== 0) {
+         tags = [];
+         for (i = 0; i !== this.tag_stack.length; ++i) {
+            tags.push(this.tag_stack[i][0]);
+         }
+         throw {
+            name: 'Tag Mismatch Error',
+            message: 'Tags not closed: ' + tags.join(', ')
+         };
       }
 
       return this.filtered_html;
    };
 
+   HTMLFilter.prototype.filter_text = function(text_chars) {
+      var filtered_text;
+      if (this.text_filter) {
+         filtered_text = this.text_filter(text_chars, this.tag_stack);
+         filtered_text = filter_html(filtered_text, this.spec, this.allowed_schemes);
+         this.filtered_html += filtered_text;
+      } else {
+         this.filtered_html += text_chars;
+      }
+   };
+
    HTMLFilter.prototype.next = function() {
       this.curr_char = this.html.charAt(this.curr_index);
       this.curr_index++;
+      
+      this.row++;
+      if (this.curr_char === '\n') {
+         this.line++;
+         this.row = 0;
+      }
+
       return this.curr_char;
    };
 
@@ -122,7 +199,7 @@ var FilterHTML = (function() {
    };
 
    HTMLFilter.prototype.filter_opening_tag = function() {
-      var tag_name, tag_parts, attributes, attribute;
+      var i, is_void, tag_name, tag_parts, attributes, attribute;
       this.extract_whitespace();
 
       tag_name = this.extract_tag_name();
@@ -147,13 +224,24 @@ var FilterHTML = (function() {
          }
 
          this.filtered_html += '>';
+
+         is_void = false;
+         for (i = 0; i !== VOID_ELEMENTS.length; ++i) {
+            if (tag_name === VOID_ELEMENTS[i]) {
+               is_void = true;
+               break;
+            }
+         }
+         if (!is_void) {
+            this.tag_stack.push([tag_name, attributes]);
+         }
       } else {
          this.extract_remaining_tag();
       }
    };
 
    HTMLFilter.prototype.filter_closing_tag = function() {
-      var tag_name, tag_parts;
+      var i, is_void, tag_name, tag_parts, opening_tag_name;
 
       this.extract_whitespace();
 
@@ -161,10 +249,34 @@ var FilterHTML = (function() {
       tag_parts = this.follow_aliases(tag_name);
       tag_name = tag_parts[0];
 
-      if (this.spec[tag_name]) {
+      is_void = false;
+      for (i = 0; i !== VOID_ELEMENTS.length; ++i) {
+         if (tag_name === VOID_ELEMENTS[i]) {
+            is_void = true;
+            break;
+         }
+      }
+
+      if (this.spec[tag_name] && !is_void) {
          this.extract_whitespace();
          if (this.curr_char === '>') {
             this.filtered_html += '</' + tag_name + '>';
+
+            if (this.tag_stack.length === 0) {
+               throw {
+                  name: 'Tag Mismatch Error',
+                  message: 'Closing tag </' + tag_name + '> not opened ' + this.line + ':' + this.row
+               }
+            }
+
+            opening_tag_name = this.tag_stack.pop()[0];
+            if (opening_tag_name !== tag_name) {
+               throw {
+                  name: 'Tag Mismatch Error',
+                  message: 'Opening tag <' + opening_tag_name + '> does not match closing tag </' + tag_name + '> ' + this.line + ':' + this.row
+               }
+            }
+
             return;
          }
       } else {
@@ -413,8 +525,8 @@ var FilterHTML = (function() {
    };
 
 
-   var filter_html = function(html, spec) {
-      var html_filter = new HTMLFilter(spec);
+   var filter_html = function(html, spec, allowed_schemes, text_filter) {
+      var html_filter = new HTMLFilter(spec, allowed_schemes, text_filter);
       return html_filter.filter(html);
    };
 

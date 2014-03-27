@@ -1,6 +1,6 @@
 FilterHTML
 ---------
-
+v0.2 - Whitelist tags, attributes, classes, styles, and now with text filtering!
 
 A dictionary-defined whitelisting HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
 
@@ -18,13 +18,14 @@ What this does:
  - Lets you filter or match individual CSS styles in style attributes
  - Lets you define allowed classes as a list
  - Has a "url" built-in for checking allowed schemes (e.g. http, https, mailto, ftp)
- - Lets you use your own functions to check attributes (if you need tighter control)
+ - Lets you use your own function delegates to check attributes (if you need tighter control)
+ - Lets you specify a filtering function delegate for modifying text between tags (e.g. auto-linking), the output is also HTML filtered
  - Helps to reduce XSS/code injection vulnerabilities
  - Runs server-side in Python (e.g. Flask, Bottle, Django) or Javascript (e.g. Node) 
  - The Javascript port can also be used for client-side filtering
 
 What this doesn't do:
- - Clean up tag soup (use something else for that, like BeautifulSoup): this assumes the HTML is valid and complete
+ - Clean up tag soup (use something else for that, like BeautifulSoup): this assumes the HTML is valid and complete. It will throw exceptions if it detects unclosed opening tags, or extra closing tags.
  - Claim to be XSS-safe out of the box: be careful with your whitelist specification and test it thoroughly (here's a handy resource: https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet)
 
 
@@ -110,3 +111,30 @@ e.g.
       # convert <center> tags to <p class="text-centered"> tags
       "center": "p class=\"text-centered\""
     }
+
+### Text Filtering
+
+The following python example does simple auto-linking of URLs, but only those not already inside 'a' tags.
+N.B. the output HTML of the urlize function is also HTML filtered using the same spec.
+
+    URLIZE_RE = '(%s)' % '|'.join([
+        r'<(?:f|ht)tps?://[^>]*>',
+        r'\b(?:f|ht)tps?://[^)<>\s]+[^.,)<>\s]',
+    ])
+
+    # second argument is a list of tags which this text is inside, each element a tuple: (tag_name, attributes)
+    def urlize(text, stack):
+      is_inside_a_tag = False
+      for tag in stack:
+        tag_name, attributes = tag
+        if tag_name == 'a':
+          is_inside_a_tag = True
+          break
+
+      if is_inside_a_tag:
+        return text
+      else:
+        return re.sub(URLIZE_RE, r'<a href="\1">\1</a>', text)
+
+
+    result = FilterHTML.filter_html(html, spec, text_filter=urlize)
