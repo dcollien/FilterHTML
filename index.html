@@ -72,7 +72,12 @@ whitelist = {
       'color': 'color',
       'background-color': 'color'
     }
-  }
+  },
+  
+  'em': {},
+
+  # convert <b> tags to <em>
+  'b': 'em'
 }
 
 # perform replacements on text (between tags)
@@ -96,6 +101,7 @@ filtered_html = FilterHTML.filter_html(unfiltered_html, whitelist)
 <li>Lets you filter or match individual CSS styles in style attributes</li>
 <li>Lets you define allowed classes as a list</li>
 <li>Lets you specify a filtering function delegate for modifying text between tags (e.g. url auto-linking, emoticon parsing, #tagging, @mentioning, etc.), the output is also HTML filtered</li>
+<li>Lets you convert one tag into another (with specified attributes)</li>
 <li>Helps to reduce XSS/code injection vulnerabilities</li>
 <li>Runs server-side in Python (e.g. Flask, Bottle, Django) or Javascript (e.g. Node) </li>
 <li>The Javascript port can also be used for client-side filtering</li>
