@@ -45,6 +45,10 @@
 <pre><code>
 import FilterHTML
 
+# only allow:
+#   <a> tags with valid href URLs
+#   <img> tags with valid src URLs and measurements
+#   <span> tags with valid color styles
 whitelist = {
   'a': {
     'href': 'url',
@@ -71,11 +75,15 @@ whitelist = {
   }
 }
 
+# perform replacements on text (between tags)
 def replace_text(text, tags):
-  return text.replace('sad', 'happy')
+  return text.replace('sad', '<strong>happy</strong>')
 
-# filter the unfiltered_html, using the above whitelist, using default allowed url schemes, and a text replacement function
-filtered_html = FilterHTML.filter_html(unfiltered_html, whitelist, null, replace_text)
+# filter the unfiltered_html, using the above whitelist, using specified allowed url schemes, and a text replacement function
+filtered_html = FilterHTML.filter_html(unfiltered_html, whitelist, ('http', 'https', 'mailto', 'ftp'), replace_text)
+
+# simpler usage: filter using the default (same as above) url schemes, and no replacement function:
+filtered_html = FilterHTML.filter_html(unfiltered_html, whitelist)
 </code></pre>
 
 <p>What this does:</p>
