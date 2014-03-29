@@ -58,3 +58,5 @@ result = FilterHTML.filter_html(html, test1.SPEC, text_filter=urlize)
 
 assert html_out.strip() == result.strip()
 
+print 'All Tests Passed'
+

@@ -36,6 +36,163 @@ HTML_ESCAPE_CHARS = {
    '"': '&quot;'
 }
 
+# predefined HTML colors
+HTML_COLORS = frozenset([
+   'aliceblue',
+   'antiquewhite',
+   'aqua',
+   'aquamarine',
+   'azure',
+   'beige',
+   'bisque',
+   'black',
+   'blanchedalmond',
+   'blue',
+   'blueviolet',
+   'brown',
+   'burlywood',
+   'cadetblue',
+   'chartreuse',
+   'chocolate',
+   'coral',
+   'cornflowerblue',
+   'cornsilk',
+   'crimson',
+   'cyan',
+   'darkblue',
+   'darkcyan',
+   'darkgoldenrod',
+   'darkgray',
+   'darkgreen',
+   'darkkhaki',
+   'darkmagenta',
+   'darkolivegreen',
+   'darkorange',
+   'darkorchid',
+   'darkred',
+   'darksalmon',
+   'darkseagreen',
+   'darkslateblue',
+   'darkslategray',
+   'darkturquoise',
+   'darkviolet',
+   'deeppink',
+   'deepskyblue',
+   'dimgray',
+   'dimgrey',
+   'dodgerblue',
+   'firebrick',
+   'floralwhite',
+   'forestgreen',
+   'fuchsia',
+   'gainsboro',
+   'ghostwhite',
+   'gold',
+   'goldenrod',
+   'gray',
+   'green',
+   'greenyellow',
+   'honeydew',
+   'hotpink',
+   'indianred',
+   'indigoivory',
+   'khaki',
+   'lavender',
+   'lavenderblush',
+   'lawngreen',
+   'lemonchiffon',
+   'lightblue',
+   'lightcoral',
+   'lightcyan',
+   'lightgoldenrodyellow',
+   'lightgray',
+   'lightgreen',
+   'lightpink',
+   'lightsalmon',
+   'lightseagreen',
+   'lightskyblue',
+   'lightslategray',
+   'lightsteelblue',
+   'lightyellow',
+   'lime',
+   'limegreen',
+   'linen',
+   'magenta',
+   'maroon',
+   'mediumaquamarine',
+   'mediumblue',
+   'mediumorchid',
+   'mediumpurple',
+   'mediumseagreen',
+   'mediumslateblue',
+   'mediumspringgreen',
+   'mediumturquoise',
+   'mediumvioletred',
+   'midnightblue',
+   'mintcream',
+   'mistyrose',
+   'moccasin',
+   'navajowhite',
+   'navy',
+   'oldlace',
+   'olive',
+   'olivedrab',
+   'orange',
+   'orangered',
+   'orchid',
+   'palegoldenrod',
+   'palegreen',
+   'paleturquoise',
+   'palevioletred',
+   'papayawhip',
+   'peachpuff',
+   'peru',
+   'pink',
+   'plum',
+   'powderblue',
+   'purple',
+   'red',
+   'rosybrown',
+   'royalblue',
+   'saddlebrown',
+   'salmon',
+   'sandybrown',
+   'seagreen',
+   'seashell',
+   'sienna',
+   'silver',
+   'skyblue',
+   'slateblue',
+   'slategray',
+   'snow',
+   'springgreen',
+   'steelblue',
+   'tan',
+   'teal',
+   'thistle',
+   'tomato',
+   'turquoise',
+   'violet',
+   'wheat',
+   'white',
+   'whitesmoke',
+   'yellow',
+   'yellowgreen'
+])
+
+# different HTML color formats
+HEX_MATCH = re.compile(r'^#([0-9A-Fa-f]{3}){1,2}$')
+
+RGB_MATCH = re.compile(r'^rgb\(\s*\d+%?\s*,\s*\d+%?\s*,\s*\d+%?\s*\)$')
+
+RGBA_MATCH = re.compile(r'^rgba\(\s*\d+%?\s*,\s*\d+%?\s*,\s*\d+%?\s*,\s*(\d+\.)?\d+\s*\)$')
+
+HSL_MATCH = re.compile(r'^hsl\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)$')
+
+HSLA_MATCH = re.compile(r'^hsla\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*,\s*(\d+\.)?\d+\s*\)$')
+
+MEASUREMENT_MATCH = re.compile(r'^(-?\d+(px|cm|pt|em|ex|pc|mm|in)?|\d+%)$')
+
 class TagMismatchError(Exception):
    pass
 
@@ -229,7 +386,7 @@ class HTMLFilter(object):
             self.filtered_html.append('</%s>' % (tag_name,))
 
             if len(self.tag_stack) == 0:
-               raise TagMismatchError('Closing tag </%s> not opened %d:%d' % (tag_name, self.line, self.row)) 
+               raise TagMismatchError('Closing tag </%s> not found %d:%d' % (tag_name, self.line, self.row)) 
 
             opening_tag_name, attributes = self.tag_stack.pop()
             if opening_tag_name != tag_name:
@@ -324,9 +481,24 @@ class HTMLFilter(object):
       value, purified = self.purify_value(value, rules)
 
       if not purified:
-         if attribute_name == "class":
+         if attribute_name == "class" and isinstance(rules, list):
             candidate_values = value.split(' ')
-            allowed_values = [candidate for candidate in candidate_values if candidate in rules]
+            allowed_values = []
+
+            for candidate in candidate_values:
+               for rule in rules:
+                  new_class_value = None
+                  if isinstance(rule, re._pattern_type):
+                     new_class_value = self.purify_regex(candidate, rule)
+                  elif callable(rule):
+                     new_class_value = rule(value)
+                  elif candidate == rule:
+                     new_class_value = candidate
+
+                  if new_class_value:
+                     allowed_values.append(new_class_value)
+
+
             value = ' '.join(allowed_values)
          elif attribute_name == "style" and isinstance(rules, dict):
             candidate_values = value.split(';')
@@ -356,6 +528,11 @@ class HTMLFilter(object):
          value = self.purify_regex(value, rules)
       elif rules == "url":
          value = self.purify_url(value)
+      elif rules == "color":
+         value = self.purify_color(value)
+      elif rules == "measurement":
+         if MEASUREMENT_MATCH.match(value) is None:
+            value = None
       elif rules == "int":
          value = self.purify_int(value)
       elif rules == "alpha":
@@ -398,6 +575,29 @@ class HTMLFilter(object):
          return None
 
       return ': '.join([name, value])
+
+   def purify_color(self, value):
+      value = value.lower()
+
+      if value in HTML_COLORS:
+         return value
+
+      if HEX_MATCH.match(value):
+         return value
+
+      if RGB_MATCH.match(value):
+         return value
+
+      if RGBA_MATCH.match(value):
+         return value
+
+      if HSL_MATCH.match(value):
+         return value
+
+      if HSLA_MATCH.match(value):
+         return value
+
+      return None
 
    def purify_url(self, url):
       parts = url.split(':')

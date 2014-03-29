@@ -1,8 +1,8 @@
 FilterHTML
 ---------
-v0.2 - Whitelist tags, attributes, classes, styles, and now with text filtering!
+v0.2 - White-list tags, attributes, classes, styles, and now with text filtering!
 
-A dictionary-defined whitelisting HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
+A dictionary-defined white-listing HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
 
 Python and JavaScript versions
 
@@ -13,12 +13,10 @@ Python installation:
 What this does:
  - Lets you easily define a subset of HTML and it filters out everything else
  - Ensures there's no unicode encoding in attributes (e.g. &amp;#58; or \3A for CSS)
- - Lets you use regular expressions, lists, functions or built-ins as rules/filters
+ - Lets you use regular expressions, lists, function delegates or built-ins as rules/filters
  - Lets you filter or match attributes on tags
  - Lets you filter or match individual CSS styles in style attributes
  - Lets you define allowed classes as a list
- - Has a "url" built-in for checking allowed schemes (e.g. http, https, mailto, ftp)
- - Lets you use your own function delegates to check attributes (if you need tighter control)
  - Lets you specify a filtering function delegate for modifying text between tags (e.g. url auto-linking, emoticon parsing, #tagging, @mentioning, etc.), the output is also HTML filtered
  - Helps to reduce XSS/code injection vulnerabilities
  - Runs server-side in Python (e.g. Flask, Bottle, Django) or Javascript (e.g. Node) 
@@ -26,10 +24,26 @@ What this does:
 
 What this doesn't do:
  - Clean up tag soup (use something else for that, like BeautifulSoup): this assumes the HTML is valid and complete. It will throw exceptions if it detects unclosed opening tags, or extra closing tags.
- - Claim to be XSS-safe out of the box: be careful with your whitelist specification and test it thoroughly (here's a handy resource: https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet)
+ - Claim to be XSS-safe out of the box: be careful with your white-list specification and test it thoroughly (here's a handy resource: https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet)
 
+### Class and Style filtering
+ - parses the 'class' attribute into a list of values to match against allowed classes (list of values or regular expressions)
+ - parses the 'style' attribute to match each style against a list of allowed styles, each with individual rules
 
-### Whitelist
+### Text filtering/modification
+ - Text (between tags) can be filtered or modified with a delegate function. This function is passed each string of text between tags, as well as a list of the tags this string is inside (and their attributes). The string is replaced with the output of this function, and it is also filtered according to the supplied white-list specification. 
+
+### Built-In Filters:
+ - "url", for parsing URLs and matching against allowed schemes (http://, ftp://, mailto:, etc.)
+ - "color", for matching an HTML color value (either a string, like "red", "blue", etc. or "#fff", "#f0f0f0", or valid "rgb", "rgba", "hsl", or "hsla" values)
+ - "measurement", for matching style measurements, e.g. "42px", "10%", "6em", etc.
+ - "int", for matching an integer
+ - "alpha", for matching alphabetical characters
+ - "alphanumeric", for matching alphabetical and digit characters
+ - "[allowedchars]", for allowing characters specified between starting and ending "[ ]"
+ Matching can also be done against regular expressions or a list of allowed values. Values can also be passed through custom filtering functions.
+
+### White-list
 Define an allowed HTML subset as a JSON object (for the JS version) or a Python dictionary.
 
 In JavaScript you can use /pattern/modifiers syntax (or new RegExp), or in Python: re.compile() in order to define regular expression filters.

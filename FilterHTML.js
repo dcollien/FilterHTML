@@ -34,11 +34,172 @@ var FilterHTML = (function() {
       '"': '&quot;'
    };
 
+   // predefined HTML colors
+   var HTML_COLORS = [
+     'aliceblue',
+     'antiquewhite',
+     'aqua',
+     'aquamarine',
+     'azure',
+     'beige',
+     'bisque',
+     'black',
+     'blanchedalmond',
+     'blue',
+     'blueviolet',
+     'brown',
+     'burlywood',
+     'cadetblue',
+     'chartreuse',
+     'chocolate',
+     'coral',
+     'cornflowerblue',
+     'cornsilk',
+     'crimson',
+     'cyan',
+     'darkblue',
+     'darkcyan',
+     'darkgoldenrod',
+     'darkgray',
+     'darkgreen',
+     'darkkhaki',
+     'darkmagenta',
+     'darkolivegreen',
+     'darkorange',
+     'darkorchid',
+     'darkred',
+     'darksalmon',
+     'darkseagreen',
+     'darkslateblue',
+     'darkslategray',
+     'darkturquoise',
+     'darkviolet',
+     'deeppink',
+     'deepskyblue',
+     'dimgray',
+     'dimgrey',
+     'dodgerblue',
+     'firebrick',
+     'floralwhite',
+     'forestgreen',
+     'fuchsia',
+     'gainsboro',
+     'ghostwhite',
+     'gold',
+     'goldenrod',
+     'gray',
+     'green',
+     'greenyellow',
+     'honeydew',
+     'hotpink',
+     'indianred',
+     'indigoivory',
+     'khaki',
+     'lavender',
+     'lavenderblush',
+     'lawngreen',
+     'lemonchiffon',
+     'lightblue',
+     'lightcoral',
+     'lightcyan',
+     'lightgoldenrodyellow',
+     'lightgray',
+     'lightgreen',
+     'lightpink',
+     'lightsalmon',
+     'lightseagreen',
+     'lightskyblue',
+     'lightslategray',
+     'lightsteelblue',
+     'lightyellow',
+     'lime',
+     'limegreen',
+     'linen',
+     'magenta',
+     'maroon',
+     'mediumaquamarine',
+     'mediumblue',
+     'mediumorchid',
+     'mediumpurple',
+     'mediumseagreen',
+     'mediumslateblue',
+     'mediumspringgreen',
+     'mediumturquoise',
+     'mediumvioletred',
+     'midnightblue',
+     'mintcream',
+     'mistyrose',
+     'moccasin',
+     'navajowhite',
+     'navy',
+     'oldlace',
+     'olive',
+     'olivedrab',
+     'orange',
+     'orangered',
+     'orchid',
+     'palegoldenrod',
+     'palegreen',
+     'paleturquoise',
+     'palevioletred',
+     'papayawhip',
+     'peachpuff',
+     'peru',
+     'pink',
+     'plum',
+     'powderblue',
+     'purple',
+     'red',
+     'rosybrown',
+     'royalblue',
+     'saddlebrown',
+     'salmon',
+     'sandybrown',
+     'seagreen',
+     'seashell',
+     'sienna',
+     'silver',
+     'skyblue',
+     'slateblue',
+     'slategray',
+     'snow',
+     'springgreen',
+     'steelblue',
+     'tan',
+     'teal',
+     'thistle',
+     'tomato',
+     'turquoise',
+     'violet',
+     'wheat',
+     'white',
+     'whitesmoke',
+     'yellow',
+     'yellowgreen'
+   ];
+
+   // different HTML color formats
+   var HEX_MATCH = /^#([0-9A-Fa-f]{3}){1,2}$/;
+
+   var RGB_MATCH = /^rgb\(\s*\d+%?\s*,\s*\d+%?\s*,\s*\d+%?\s*\)$/;
+
+   var RGBA_MATCH = /^rgba\(\s*\d+%?\s*,\s*\d+%?\s*,\s*\d+%?\s*,\s*(\d+\.)?\d+\s*\)$/;
+
+   var HSL_MATCH = /^hsl\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)$/;
+
+   var HSLA_MATCH = /^hsla\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*,\s*(\d+\.)?\d+\s*\)$/;
+
+   var MEASUREMENT_MATCH = /^(-?\d+(px|cm|pt|em|ex|pc|mm|in)?|\d+%)$/;
+
    var HTMLFilter = function(spec, allowed_schemes, text_filter) {
       this.html = '';
       this.filtered_html = '';
       this.spec = spec;
       this.global_attrs = spec['*'];
+
+      if (!this.global_attrs) {
+         this.global_attrs = [];
+      }
       
       if (allowed_schemes) {
          this.allowed_schemes = allowed_schemes;
@@ -116,7 +277,7 @@ var FilterHTML = (function() {
          this.line++;
          this.row = 0;
       }
-
+      
       return this.curr_char;
    };
 
@@ -264,7 +425,7 @@ var FilterHTML = (function() {
             if (this.tag_stack.length === 0) {
                throw {
                   name: 'Tag Mismatch Error',
-                  message: 'Closing tag </' + tag_name + '> not opened ' + this.line + ':' + this.row
+                  message: 'Closing tag </' + tag_name + '> not found ' + this.line + ':' + this.row
                }
             }
 
@@ -365,19 +526,31 @@ var FilterHTML = (function() {
    };
    
    HTMLFilter.prototype.purify_attribute = function(attribute_name, value, rules) {
-      var candidate_values, allowed_values, i, isPurified, parts, pure_value;
+      var candidate_values, allowed_values, i, rule_index, is_purified, parts, pure_value, new_class_value;
 
       parts = this.purify_value(value, rules);
       value = parts[0];
-      isPurified = parts[1];
+      is_purified = parts[1];
 
-      if (!isPurified) {
-         if (attribute_name === "class") {
+      if (!is_purified) {
+         if (attribute_name === "class" && Object.prototype.toString.call(rules) == '[object Array]') {
             candidate_values = value.split(' ');
             allowed_values = [];
+
             for (i = 0; i != candidate_values.length; ++i) {
-               if (rules.indexOf(candidate_values[i]) >= 0) {
-                  allowed_values.push(candidate_values[i]);
+               for (rule_index = 0; rule_index != rules.length; ++rule_index) {
+                  new_class_value = null;
+                  if (rules[rule_index] instanceof RegExp) {
+                     new_class_value = this.purify_regex(candidate_values[i], rules[rule_index]);
+                  } else if (typeof rules === 'function') {
+                     new_class_value = rules[rule_index](candidate_values[i]);
+                  } else if (candidate_values[i] === rules[rule_index]) {
+                     new_class_value = candidate_values[i];
+                  }
+
+                  if (new_class_value) {
+                     allowed_values.push(new_class_value);
+                  }
                }
             }
             value = allowed_values.join(' ');
@@ -410,11 +583,17 @@ var FilterHTML = (function() {
       
       // disallow &# in values (can be used for encoding disallowed characters)
       if (UNICODE_REGEX.test(value)) {
-         return null;
+         value = null;
       } else if (rules instanceof RegExp) {
          value = this.purify_regex(value, rules);
       } else if (rules === "url") {
          value = this.purify_url(value);
+      } else if (rules === "color") {
+         value = this.purify_color(value);
+      } else if (rules === "measurement") {
+         if (!MEASUREMENT_MATCH.test(value)) {
+            value = null;
+         }
       } else if (rules === "int") {
          value = this.purify_int(value);
       } else if (rules === "alpha") {
@@ -433,7 +612,7 @@ var FilterHTML = (function() {
    };
 
    HTMLFilter.prototype.purify_style = function(style, rules) {
-      var parts, name, value, style_rules, isPurified;
+      var parts, name, value, style_rules, is_purified;
 
       parts = style.split(':');
 
@@ -453,9 +632,9 @@ var FilterHTML = (function() {
          style_rules = rules[name];
          parts = this.purify_value(value, style_rules);
          value = parts[0];
-         isPurified = parts[1];
+         is_purified = parts[1];
 
-         if (!isPurified) {
+         if (!is_purified) {
             if (style_rules.indexOf(value) < 0) {
                return null;
             }
@@ -467,6 +646,39 @@ var FilterHTML = (function() {
       }
 
       return name + ': ' + value;
+   };
+
+   HTMLFilter.prototype.purify_color = function(value) {
+     var i;
+     var value = value.toLowerCase()
+
+     for (i = 0; i !== HTML_COLORS.length; ++i) {
+       if (value === HTML_COLORS[i]) {
+         return value;
+       }
+     }
+
+     if (HEX_MATCH.test(value)) {
+       return value;
+     }
+
+     if (RGB_MATCH.test(value)) {
+       return value;
+     }
+
+     if (RGBA_MATCH.test(value)) {
+       return value;
+     }
+
+     if (HSL_MATCH.test(value)) {
+       return value;
+     }
+
+     if (HSLA_MATCH.test(value)) {
+       return value;
+     }
+
+     return null;
    };
 
    HTMLFilter.prototype.purify_url = function(url) {
@@ -534,7 +746,7 @@ var FilterHTML = (function() {
    };
 })();
 
-if (module) {
+if (typeof module !== 'undefined') {
    module.exports = FilterHTML;
 }
 
