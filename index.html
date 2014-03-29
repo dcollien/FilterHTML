@@ -42,6 +42,42 @@
 <pre><code>pip install FilterHTML
 </code></pre>
 
+<pre><code>
+import FilterHTML
+
+whitelist = {
+  'a': {
+    'href': 'url',
+    'target': [
+      '_blank',
+      '_self'
+    ],
+    'class': [
+      'button'
+    ]
+  },
+
+  'img': {
+    'src': 'url',
+    'width': 'measurement',
+    'height': 'measurement'
+  },
+
+  'span': {
+    'style': {
+      'color': 'color',
+      'background-color': 'color'
+    }
+  }
+}
+
+def replace_text(text, tags):
+  return text.replace('sad', 'happy')
+
+# filter the unfiltered_html, using the above whitelist, using default allowed url schemes, and a text replacement function
+filtered_html = FilterHTML.filter_html(unfiltered_html, whitelist, null, replace_text)
+</code></pre>
+
 <p>What this does:</p>
 
 <ul>
