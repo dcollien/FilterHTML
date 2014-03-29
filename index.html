@@ -31,59 +31,114 @@
           <h2>
 <a name="filterhtml" class="anchor" href="#filterhtml"><span class="octicon octicon-link"></span></a>FilterHTML</h2>
 
-<p>A white-listing HTML filter that's really easy to configure and is useful for filtering HTML to leave behind a supported or safe sub-set.</p>
+<p>v0.2 - White-list tags, attributes, classes, styles, and now with text filtering!</p>
 
-<p>The whitelist specification (or the list of whitelisting rules) is provided as a dictionary.</p>
+<p>A dictionary-defined white-listing HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.</p>
 
-<p>Both Python and JavaScript versions are available.</p>
+<p>Python and JavaScript versions</p>
 
-<p>N.B. This package only filters HTML (to remove nefarious or unsupported tags, attributes, classes and styles) and does not ensure that the HTML structure is properly formed. If using Python, <a href="http://www.crummy.com/software/BeautifulSoup/">BeautifulSoup</a> is quite good at doing this and can be used in conjunction with FilterHTML like so:</p>
+<p>Python installation:</p>
 
-<pre><code>import FilterHTML
-from bs4 import BeautifulSoup
-
-html = FilterHTML.filter_html(str(BeautifulSoup(html)), HTML_SPEC)
+<pre><code>pip install FilterHTML
 </code></pre>
 
-<p>The allowed HTML subset is defined as a JSON-like object or Python dictionary.</p>
+<p>What this does:</p>
 
-<p>e.g. in Python:</p>
+<ul>
+<li>Lets you easily define a subset of HTML and it filters out everything else</li>
+<li>Ensures there's no unicode encoding in attributes (e.g. &amp;#58; or \3A for CSS)</li>
+<li>Lets you use regular expressions, lists, function delegates or built-ins as rules/filters</li>
+<li>Lets you filter or match attributes on tags</li>
+<li>Lets you filter or match individual CSS styles in style attributes</li>
+<li>Lets you define allowed classes as a list</li>
+<li>Lets you specify a filtering function delegate for modifying text between tags (e.g. url auto-linking, emoticon parsing, #tagging, @mentioning, etc.), the output is also HTML filtered</li>
+<li>Helps to reduce XSS/code injection vulnerabilities</li>
+<li>Runs server-side in Python (e.g. Flask, Bottle, Django) or Javascript (e.g. Node) </li>
+<li>The Javascript port can also be used for client-side filtering</li>
+</ul>
 
-<pre><code>import re
-spec = {
+<p>What this doesn't do:</p>
 
-   # an allowed tag
-  "img": {
-    # attributes that are allowed, as another dict
+<ul>
+<li>Clean up tag soup (use something else for that, like <a href="http://www.crummy.com/software/BeautifulSoup/" target="_blank">BeautifulSoup</a>): this assumes the HTML is valid and complete. It will throw exceptions if it detects unclosed opening tags, or extra closing tags.</li>
+<li>Claim to be XSS-safe out of the box: be careful with your white-list specification and test it thoroughly (here's a handy resource: <a href="https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet" target="_blank">https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet)</a></li>
+</ul>
 
-    # parse urls to ensure there's no javascript, by using the "url" string.
-    # allowed schemes are 'http', 'https', 'mailto', and 'ftp' (as well as local URIs)
-    "src": "url",
+<h3 id="classandstylefiltering">Class and Style filtering</h3>
 
-    # make sure these fields are integers, by using the "int" string
-    "border": "int",
-    "width": "int",
-    "height": "int"
-  },
+<ul>
+<li>Parses the 'class' attribute into a list of values to match against allowed classes (list of values or regular expressions)</li>
+<li>Parses the 'style' attribute to match each style against a list of allowed styles, each with individual rules</li>
+</ul>
+
+<h3 id="textfilteringmodification">Text filtering/modification</h3>
+
+<ul>
+<li>Text (between tags) can be filtered or modified with a delegate function. This function is passed each string of text between tags, as well as a list of the tags this string is inside (and their attributes). The string is replaced with the output of this function, and it is also filtered according to the supplied white-list specification. </li>
+</ul>
+
+<h3 id="builtinfilters">Built-In Filters:</h3>
+
+<ul>
+<li>"url", for parsing URLs and matching against allowed schemes (http://, ftp://, mailto:, etc.)</li>
+<li>"color", for matching an HTML color value (either a string, like "red", "blue", etc. or "#fff", "#f0f0f0", or valid "rgb", "rgba", "hsl", or "hsla" values)</li>
+<li>"measurement", for matching style measurements, e.g. "42px", "10%", "6em", etc.</li>
+<li>"int", for matching an integer</li>
+<li>"alpha", for matching alphabetical characters</li>
+<li>"alphanumeric", for matching alphabetical and digit characters</li>
+<li>"[allowedchars]", for allowing characters specified between starting and ending "[ ]"</li>
+</ul>
+Matching can also be done against regular expressions or a list of allowed values. Values can also be passed through custom filtering functions.
+
+<h3 id="whitelist">White-list</h3>
+
+<p>Define an allowed HTML subset as a JSON object (for the JS version) or a Python dictionary.</p>
+
+<p>In JavaScript you can use /pattern/modifiers syntax (or new RegExp), or in Python: re.compile() in order to define regular expression filters.</p>
+
+<ul>
+<li><a href="/FilterHTML/Bootstrap3Spec.js" target="_blank">JavaScript Example</a></li>
+<li><a href="/FilterHTML/BootstrapSpec.py" target="_blank">Python Example</a></li>
+</ul>
+
+<p>e.g.</p>
+
+<pre><code>spec = {
 
   "div": {
-    # list of allowed class values (multiple classes supported)
+    # list allowed attribute values, as a list
     "class": [
        "container",
        "content"
     ]
   },
 
-  "a": {
-    "href": "url",
+  "p": {
+    "class": [
+       "centered"
+    ],
+    # style parsing
+    "style": {
+      "color": re.compile(r'^#[0-9A-Fa-f]{6}$')
+    }
+  },
 
-    # list of allowed attribute values
+  "a": {
+    # parse urls to ensure there's no javascript, by using the "url" string.
+    # disallow &amp;# unicode encoding
+    # allowed schemes are 'http', 'https', 'mailto', and 'ftp' (as well as local URIs)
+    "href": "url",
     "target": [
-       "_blank",
-       "_self",
-       "_parent",
-       "_top"
+       "_blank"
     ]
+  },
+
+  "img": {
+    "src": "url",
+    # make sure these fields are integers, by using the "int" string
+    "border": "int",
+    "width": "int",
+    "height": "int"
   },
 
   "input": {
@@ -95,31 +150,21 @@ spec = {
     "value": "alphanumeric"
   },
 
-  "i": {
-    # use a regex match
-    # in JavaScript you can use /^icon-[a-z0-9_]+$/
-    "class": re.compile("^icon-[a-z0-9_]+$")
-  },
-
-  "p": {
-    "class": [
-       "fancy"
-    ],
-    # style parsing
-    "style": {
-      "color": re.compile(r'^#[0-9A-Fa-f]{6}$'),
-      "background-color": re.compile(r'^#[0-9A-Fa-f]{6}$')
-    }
-  },
-
   # filter out all attributes for these tags
   "hr": {},
   "br": {},
   "strong": {},
 
+  "i": {
+    # use a regex match
+    # in javascript you can use /this style/ regex.
+    "class": re.compile(r'^icon-[a-z0-9_]+$/')
+  },
+
   # global attributes (allowed on all elements):
   # (N.B. only applies to tags already supplied as keys)
-  # element's specific attributes take precedence, but if they are all filtered out these global rules are applied to the original attribute value
+  # element's specific attributes take precedence, but if they are all filtered out 
+  # these global rules are applied to the original attribute value
 
   "*": {
     "class": ["text-left", "text-right", "text-centered"]
@@ -133,6 +178,35 @@ spec = {
   # convert &lt;center&gt; tags to &lt;p class="text-centered"&gt; tags
   "center": "p class=\"text-centered\""
 }
+</code></pre>
+
+<h3 id="textfiltering">Text Filtering</h3>
+
+<p>The following python example does simple auto-linking of URLs, but only those not already inside 'a' tags.
+N.B. the output HTML of the urlize function is also HTML filtered using the same spec.</p>
+
+<pre><code>URLIZE_RE = '(%s)' % '|'.join([
+    r'&lt;(?:f|ht)tps?://[^&gt;]*&gt;',
+    r'\b(?:f|ht)tps?://[^)&lt;&gt;\s]+[^.,)&lt;&gt;\s]',
+])
+
+# second argument is a list of tags which this text is inside,
+# each element a tuple: (tag_name, attributes)
+def urlize(text, stack):
+  is_inside_a_tag = False
+  for tag in stack:
+    tag_name, attributes = tag
+    if tag_name == 'a':
+      is_inside_a_tag = True
+      break
+
+  if is_inside_a_tag:
+    return text
+  else:
+    return re.sub(URLIZE_RE, r'&lt;a href="\1"&gt;\1&lt;/a&gt;', text)
+
+
+result = FilterHTML.filter_html(html, spec, text_filter=urlize)
 </code></pre>
         </section>
 
