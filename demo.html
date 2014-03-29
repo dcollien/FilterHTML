@@ -1,9 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
   <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <link rel="stylesheet" type="text/css" href="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+
+
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>FilterHTML Demo</title>
+
+
     <style type="text/css">
       #html-input {
         -webkit-box-sizing: border-box;
@@ -29,11 +45,20 @@
     </style>
   </head>
 
-  <div class="container">
+  <body>
+    <header>
+      <div class="inner">
+        <h1>FilterHTML Demo</h1>
+        <h2>Change the HTML below, and it will be filtered with FilterHTML</h2>
+      </div>
+    </header>
+
+  <section class="container">
+
     <h1>FilterHTML Demo</h1>
     <div class="row">
       <div class="col-md-6">
-        Change the HTML below, and it will be filtered.
+        
         <div id="error" class="panel-danger"></div>
       </div>
       <div class="col-md-6">
@@ -72,7 +97,8 @@
     </div>
     <div class="row">
       <div class="col-md-12">
-        The above filtering uses the following specification:
+        <h3>White-List</h3>
+        <p>The above filtering uses the following specification:</p>
 <pre>
 {
   'span': {
@@ -393,7 +419,8 @@
 </pre>
       </div>
     </div>
-  </div>
+  </section>
+
 
   <script type="text/javascript" src="FilterHTML.js"></script>
   <script type="text/javascript" src="Bootstrap3Spec.js"></script>
