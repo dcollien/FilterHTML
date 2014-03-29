@@ -10,6 +10,52 @@ Python installation:
     
     pip install FilterHTML
 
+Example:
+
+    import FilterHTML
+
+    # only allow:
+    #   <a> tags with valid href URLs
+    #   <img> tags with valid src URLs and measurements
+    #   <span> tags with valid color styles
+    whitelist = {
+      'a': {
+        'href': 'url',
+        'target': [
+          '_blank',
+          '_self'
+        ],
+        'class': [
+          'button'
+        ]
+      },
+
+      'img': {
+        'src': 'url',
+        'width': 'measurement',
+        'height': 'measurement'
+      },
+
+      'span': {
+        'style': {
+          'color': 'color',
+          'background-color': 'color'
+        }
+      }
+    }
+
+    # perform replacements on text (between tags)
+    def replace_text(text, tags):
+      return text.replace('sad', '<strong>happy</strong>')
+
+    # filter the unfiltered_html, using the above whitelist, using specified allowed url schemes, and a text replacement function
+    filtered_html = FilterHTML.filter_html(unfiltered_html, whitelist, ('http', 'https', 'mailto', 'ftp'), replace_text)
+
+    # simpler usage: filter using the default (same as above) url schemes, and no replacement function:
+    filtered_html = FilterHTML.filter_html(unfiltered_html, whitelist)
+
+
+
 What this does:
  - Lets you easily define a subset of HTML and it filters out everything else
  - Ensures there's no unicode encoding in attributes (e.g. &amp;#58; or \3A for CSS)
