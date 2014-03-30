@@ -288,9 +288,12 @@ class HTMLFilter(object):
    def __filter_tag(self):
       assert self.curr_char == '<'
 
-      if self.__next() == '/':
+      next_char = self.__next()
+      if next_char == '/':
          self.__next()
          self.__filter_closing_tag()
+      elif next_char == '!':
+         self.__filter_comment()
       else:
          self.__filter_opening_tag()
 
@@ -395,6 +398,9 @@ class HTMLFilter(object):
             return
       else:
          self.__extract_remaining_tag()
+
+   def __filter_comment(self):
+      self.__extract_remaining_tag()
 
    def __filter_attribute(self, tag_name):
       allowed_attributes = self.spec[tag_name].keys()
