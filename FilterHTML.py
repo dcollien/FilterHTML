@@ -483,7 +483,7 @@ class HTMLFilter(object):
       if not purified:
          if attribute_name == "class" and isinstance(rules, list):
             candidate_values = value.split(' ')
-            allowed_values = []
+            allowed_values = set()
 
             for candidate in candidate_values:
                for rule in rules:
@@ -496,7 +496,7 @@ class HTMLFilter(object):
                      new_class_value = candidate
 
                   if new_class_value:
-                     allowed_values.append(new_class_value)
+                     allowed_values.add(new_class_value)
 
 
             value = ' '.join(allowed_values)
@@ -531,8 +531,7 @@ class HTMLFilter(object):
       elif rules == "color":
          value = self.purify_color(value)
       elif rules == "measurement":
-         if MEASUREMENT_MATCH.match(value) is None:
-            value = None
+         value = self.purify_regex(value, MEASUREMENT_MATCH)
       elif rules == "int":
          value = self.purify_int(value)
       elif rules == "alpha":
