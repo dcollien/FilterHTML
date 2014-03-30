@@ -277,7 +277,7 @@ var FilterHTML = (function() {
          this.line++;
          this.row = 0;
       }
-      
+
       return this.curr_char;
    };
 
@@ -591,9 +591,7 @@ var FilterHTML = (function() {
       } else if (rules === "color") {
          value = this.purify_color(value);
       } else if (rules === "measurement") {
-         if (!MEASUREMENT_MATCH.test(value)) {
-            value = null;
-         }
+         value = this.purify_regex(value, MEASUREMENT_MATCH);
       } else if (rules === "int") {
          value = this.purify_int(value);
       } else if (rules === "alpha") {

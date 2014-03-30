@@ -531,8 +531,7 @@ class HTMLFilter(object):
       elif rules == "color":
          value = self.purify_color(value)
       elif rules == "measurement":
-         if MEASUREMENT_MATCH.match(value) is None:
-            value = None
+         value = self.purify_regex(value, MEASUREMENT_MATCH)
       elif rules == "int":
          value = self.purify_int(value)
       elif rules == "alpha":
