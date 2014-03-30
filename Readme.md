@@ -10,6 +10,12 @@ Python installation:
     
     pip install FilterHTML
 
+Node.js installation:
+
+    npm install filterhtml
+
+Browser: copy `./lib/FilterHTML.js` into your project
+
 Example:
 
     import FilterHTML

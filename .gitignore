@@ -26,3 +26,5 @@ dist/FilterHTML-0.0.3.tar.gz
 *.gz
 
 *.exe
+
+npm-debug.log
