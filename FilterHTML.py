@@ -483,7 +483,7 @@ class HTMLFilter(object):
       if not purified:
          if attribute_name == "class" and isinstance(rules, list):
             candidate_values = value.split(' ')
-            allowed_values = []
+            allowed_values = set()
 
             for candidate in candidate_values:
                for rule in rules:
@@ -496,7 +496,7 @@ class HTMLFilter(object):
                      new_class_value = candidate
 
                   if new_class_value:
-                     allowed_values.append(new_class_value)
+                     allowed_values.add(new_class_value)
 
 
             value = ' '.join(allowed_values)

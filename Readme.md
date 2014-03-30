@@ -77,8 +77,59 @@ What this doesn't do:
  - parses the 'class' attribute into a list of values to match against allowed classes (list of values or regular expressions)
  - parses the 'style' attribute to match each style against a list of allowed styles, each with individual rules
 
+ e.g.
+
+    {
+      'div': {
+        # style filtering:
+        'style': {
+          'width': 'measurement',
+          'height': 'measurement',
+          'background-color': 'color',
+          'text-align': ['left', 'right', 'center', 'justify', 'inherit'],
+          'border': border_filter_function, # implement your own function,
+          'border-radius': re.compile(r'^\d+px$')
+        }
+      },
+
+      'span': {
+        # class filtering (a list of allowed matches, strings, regex or functions):
+        'class': [
+          'icon',
+          re.compile(r'^icon\-[a-zA-Z0-9\-]+$')
+        ]
+      }
+    }
+
 ### Text filtering/modification
  - Text (between tags) can be filtered or modified with a delegate function. This function is passed each string of text between tags, as well as a list of the tags this string is inside (and their attributes). The string is replaced with the output of this function, and it is also filtered according to the supplied white-list specification. 
+
+The following python example does simple auto-linking of URLs, but only those not already inside 'a' tags.
+N.B. the output HTML of the urlize function is also HTML filtered using the same spec.
+
+    URLIZE_RE = '(%s)' % '|'.join([
+        r'<(?:f|ht)tps?://[^>]*>',
+        r'\b(?:f|ht)tps?://[^)<>\s]+[^.,)<>\s]',
+    ])
+
+    # second argument is a list of tags which this text is inside,
+    # each element a tuple: (tag_name, attributes)
+    def urlize(text, stack):
+      is_inside_a_tag = False
+      for tag in stack:
+        tag_name, attributes = tag
+        if tag_name == 'a':
+          is_inside_a_tag = True
+          break
+
+      if is_inside_a_tag:
+        return text
+      else:
+        return re.sub(URLIZE_RE, r'<a href="\1">\1</a>', text)
+
+
+    result = FilterHTML.filter_html(html, spec, text_filter=urlize)
+
 
 ### Built-In Filters:
  - "url", for parsing URLs and matching against allowed schemes (http://, ftp://, mailto:, etc.)
@@ -88,14 +139,15 @@ What this doesn't do:
  - "alpha", for matching alphabetical characters
  - "alphanumeric", for matching alphabetical and digit characters
  - "[allowedchars]", for allowing characters specified between starting and ending "[ ]"
+
  Matching can also be done against regular expressions or a list of allowed values. Values can also be passed through custom filtering functions.
 
 ### White-list
 Define an allowed HTML subset as a JSON object (for the JS version) or a Python dictionary.
 
-In JavaScript you can use /pattern/modifiers syntax (or new RegExp), or in Python: re.compile() in order to define regular expression filters.
+For regular expression filters, you can use /pattern/modifiers syntax in JavaScript (or new RegExp), or in Python: re.compile()
 
-e.g.
+Python example whitelist:
 
     spec = {
 
@@ -120,7 +172,8 @@ e.g.
       "a": {
         # parse urls to ensure there's no javascript, by using the "url" string.
         # disallow &# unicode encoding
-        # allowed schemes are 'http', 'https', 'mailto', and 'ftp' (as well as local URIs)
+        # by default allowed schemes are 'http', 'https', 'mailto', and 'ftp' (as well as local URIs)
+        # this can be changed by passing in allowed_schemes=('http', 'myscheme')
         "href": "url",
         "target": [
            "_blank"
@@ -130,7 +183,6 @@ e.g.
       "img": {
         "src": "url",
         # make sure these fields are integers, by using the "int" string
-        "border": "int",
         "width": "int",
         "height": "int"
       },
@@ -173,30 +225,3 @@ e.g.
       "center": "p class=\"text-centered\""
     }
 
-### Text Filtering
-
-The following python example does simple auto-linking of URLs, but only those not already inside 'a' tags.
-N.B. the output HTML of the urlize function is also HTML filtered using the same spec.
-
-    URLIZE_RE = '(%s)' % '|'.join([
-        r'<(?:f|ht)tps?://[^>]*>',
-        r'\b(?:f|ht)tps?://[^)<>\s]+[^.,)<>\s]',
-    ])
-
-    # second argument is a list of tags which this text is inside,
-    # each element a tuple: (tag_name, attributes)
-    def urlize(text, stack):
-      is_inside_a_tag = False
-      for tag in stack:
-        tag_name, attributes = tag
-        if tag_name == 'a':
-          is_inside_a_tag = True
-          break
-
-      if is_inside_a_tag:
-        return text
-      else:
-        return re.sub(URLIZE_RE, r'<a href="\1">\1</a>', text)
-
-
-    result = FilterHTML.filter_html(html, spec, text_filter=urlize)

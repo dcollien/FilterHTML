@@ -526,7 +526,7 @@ var FilterHTML = (function() {
    };
    
    HTMLFilter.prototype.purify_attribute = function(attribute_name, value, rules) {
-      var candidate_values, allowed_values, i, rule_index, is_purified, parts, pure_value, new_class_value;
+      var candidate_values, allowed_values, allowed_values_set, i, rule_index, is_purified, parts, pure_value, new_class_value;
 
       parts = this.purify_value(value, rules);
       value = parts[0];
@@ -535,7 +535,7 @@ var FilterHTML = (function() {
       if (!is_purified) {
          if (attribute_name === "class" && Object.prototype.toString.call(rules) == '[object Array]') {
             candidate_values = value.split(' ');
-            allowed_values = [];
+            allowed_values_set = {};
 
             for (i = 0; i != candidate_values.length; ++i) {
                for (rule_index = 0; rule_index != rules.length; ++rule_index) {
@@ -549,10 +549,17 @@ var FilterHTML = (function() {
                   }
 
                   if (new_class_value) {
-                     allowed_values.push(new_class_value);
+                     allowed_values[new_class_value] = true;
                   }
                }
             }
+
+            for (new_class_value in allowed_values_set) {
+               if (allowed_values_set.hasOwnProperty(new_class_value)) {
+                  allowed_values.push(new_class_value);
+               }
+            }
+            
             value = allowed_values.join(' ');
          } else if (attribute_name === "style" && Object.prototype.toString.call(rules) == '[object Object]') {
             candidate_values = value.split(';');
