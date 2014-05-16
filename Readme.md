@@ -84,8 +84,9 @@ What this doesn't do:
  - parses the 'class' attribute into a list of values to match against allowed classes (list of values or regular expressions)
  - parses the 'style' attribute to match each style against a list of allowed styles, each with individual rules
 
- e.g.
 
+ e.g.
+<pre>
     {
       'div': {
         # style filtering:
@@ -98,7 +99,6 @@ What this doesn't do:
           'border-radius': re.compile(r'^\d+px$')
         }
       },
-
       'span': {
         # class filtering (a list of allowed matches, strings, regex or functions):
         'class': [
@@ -107,7 +107,7 @@ What this doesn't do:
         ]
       }
     }
-
+</pre>
 ### Text filtering/modification
  - Text (between tags) can be filtered or modified with a delegate function. This function is passed each string of text between tags, as well as a list of the tags this string is inside (and their attributes). The string is replaced with the output of this function, and it is also filtered according to the supplied white-list specification. 
 
