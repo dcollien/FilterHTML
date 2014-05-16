@@ -1,6 +1,6 @@
 FilterHTML
 ---------
-v0.2 - White-list tags, attributes, classes, styles, and now with text filtering!
+v0.3 - White-list tags, attributes, classes, styles. With tag-specific text filtering and tag contents removal.
 
 A dictionary-defined white-listing HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
 
@@ -71,6 +71,7 @@ What this does:
  - Lets you define allowed classes as a list
  - Lets you specify a filtering function delegate for modifying text between tags (e.g. url auto-linking, emoticon parsing, #tagging, @mentioning, etc.), the output is also HTML filtered
  - Lets you convert one tag into another (with specified attributes)
+ - Lets you completely remove contents of style and script tags from HTML
  - Helps to reduce XSS/code injection vulnerabilities
  - Runs server-side in Python (e.g. Flask, Bottle, Django) or Javascript (e.g. Node) 
  - The Javascript port can also be used for client-side filtering
@@ -135,6 +136,9 @@ N.B. the output HTML of the urlize function is also HTML filtered using the same
 
 
     result = FilterHTML.filter_html(html, spec, text_filter=urlize)
+
+    # script and style tag contents can be removed:
+    result = FilterHTML.filter_html(html, spec, text_filter=urlize, remove=['script', 'style'])
 
 
 ### Built-In Filters:
