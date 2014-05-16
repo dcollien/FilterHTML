@@ -71,7 +71,7 @@ What this does:
  - Lets you define allowed classes as a list
  - Lets you specify a filtering function delegate for modifying text between tags (e.g. url auto-linking, emoticon parsing, #tagging, @mentioning, etc.), the output is also HTML filtered
  - Lets you convert one tag into another (with specified attributes)
- - Lets you completely remove contents of style and script tags from HTML
+ - Lets you completely remove contents of specified tags from HTML
  - Helps to reduce XSS/code injection vulnerabilities
  - Runs server-side in Python (e.g. Flask, Bottle, Django) or Javascript (e.g. Node) 
  - The Javascript port can also be used for client-side filtering
