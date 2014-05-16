@@ -208,13 +208,22 @@ class HTMLSyntaxError(Exception):
    pass
 
 class HTMLFilter(object):
-   def __init__(self, spec, allowed_schemes=('http', 'https', 'mailto', 'ftp'), text_filter=None, remove=[]):
+   def __init__(self, spec, allowed_schemes=('http', 'https', 'mailto', 'ftp'), text_filter=None, remove=None):
       self.tag_chars = TAG_CHARS
       self.attr_chars = ATTR_CHARS
       self.trans_table = TRANS_TABLE
       self.tag_removing = None
       self.removals = remove
-      self.remove_scripts = ('script' in remove)
+
+      if self.removals is None:
+         # by default scripts and styles are removed if they don't exist in the spec
+         self.removals = []
+         if 'script' not in spec:
+            self.removals.append('script')
+         if 'style' not in spec:
+            self.removals.append('style')
+
+      self.remove_scripts = ('script' in self.removals)
 
       self.allowed_schemes = allowed_schemes
 
