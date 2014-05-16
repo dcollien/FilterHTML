@@ -1,6 +1,6 @@
 FilterHTML
 ---------
-v0.3 - White-list tags, attributes, classes, styles. With text filtering and style/script tag removal.
+v0.3 - White-list tags, attributes, classes, styles. With tag-specific text filtering and tag contents removal.
 
 A dictionary-defined white-listing HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
 
@@ -138,7 +138,7 @@ N.B. the output HTML of the urlize function is also HTML filtered using the same
     result = FilterHTML.filter_html(html, spec, text_filter=urlize)
 
     # script and style tag contents can be removed:
-    result = FilterHTML.filter_html(html, spec, text_filter=urlize, remove_scripts=True, remove_styles=True)
+    result = FilterHTML.filter_html(html, spec, text_filter=urlize, remove=['script', 'style'])
 
 
 ### Built-In Filters:

@@ -53,7 +53,7 @@ def urlize(text, stack):
 	else:
 		return re.sub(URLIZE_RE, r'<a href="\1">\1</a>', text)
 
-result = FilterHTML.filter_html(html, test1.SPEC, text_filter=urlize, remove_scripts=True, remove_styles=True)
+result = FilterHTML.filter_html(html, test1.SPEC, text_filter=urlize, remove=['script', 'style'])
 
 assert html_out.strip() == result.strip()
 

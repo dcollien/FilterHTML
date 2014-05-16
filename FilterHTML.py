@@ -196,7 +196,7 @@ MEASUREMENT_MATCH = re.compile(r'^(-?\d+(px|cm|pt|em|ex|pc|mm|in)?|\d+%)$')
 # states for navigating script tags (with pesky less-than "<" signs)
 """
    data
-   style-data
+   skip-data
    script-data
    script-data-less-than-sign
 """
@@ -208,12 +208,13 @@ class HTMLSyntaxError(Exception):
    pass
 
 class HTMLFilter(object):
-   def __init__(self, spec, allowed_schemes=('http', 'https', 'mailto', 'ftp'), text_filter=None, remove_scripts=False, remove_styles=False):
+   def __init__(self, spec, allowed_schemes=('http', 'https', 'mailto', 'ftp'), text_filter=None, remove=[]):
       self.tag_chars = TAG_CHARS
       self.attr_chars = ATTR_CHARS
       self.trans_table = TRANS_TABLE
-      self.remove_scripts = remove_scripts
-      self.remove_styles = remove_styles
+      self.tag_removing = None
+      self.removals = remove
+      self.remove_scripts = ('script' in remove)
 
       self.allowed_schemes = allowed_schemes
 
@@ -265,7 +266,7 @@ class HTMLFilter(object):
          else:
             if self.state == 'script-data' and self.remove_scripts:
                pass
-            elif self.state == 'style-data' and self.remove_styles:
+            elif self.state == 'skip-data':
                pass
             else:
                # collect text characters and escape them
@@ -295,7 +296,7 @@ class HTMLFilter(object):
          filtered_text = self.text_filter(''.join(text_chars), self.tag_stack)
 
          # ensure filtered text adheres to the html spec
-         filtered_text = filter_html(filtered_text, self.spec, allowed_schemes=self.allowed_schemes)
+         filtered_text = filter_html(filtered_text, self.spec, allowed_schemes=self.allowed_schemes, remove=self.removals)
 
          filtered_html += list(filtered_text)
       else:
@@ -406,8 +407,9 @@ class HTMLFilter(object):
 
       if tag_name == 'script':
          self.state = 'script-data'
-      elif tag_name == 'style':
-         self.state = 'style-data'
+      elif tag_name in self.removals:
+         self.tag_removing = tag_name
+         self.state = 'skip-data'
 
       tag_name, attributes = self.__follow_aliases(tag_name)
       
@@ -442,8 +444,9 @@ class HTMLFilter(object):
 
       if tag_name == 'script' and self.state == 'script-data':
          self.state = 'data'
-      elif tag_name == 'style' and self.state == 'style-data':
+      elif tag_name == self.tag_removing and self.state == 'skip-data':
          self.state = 'data'
+         self.tag_removing == None
       
       tag_name, attributes = self.__follow_aliases(tag_name)
 

@@ -98,7 +98,7 @@
     <div class="row">
       <div class="col-md-12">
         <h3>White-List</h3>
-        <p>The above filtering uses the following specification:</p>
+        <p>The above filtering uses the following specification (and also strips out style tags):</p>
 <pre>
 {
   'span': {
@@ -441,7 +441,7 @@
         var html = $(this).val();
         
         try {
-          var filtered_html = FilterHTML.filter_html(html, HTML_SPEC, null, modify_text);
+          var filtered_html = FilterHTML.filter_html(html, HTML_SPEC, null, modify_text, ['style']);
           $('#error').text('');
         } catch (e) {
           $('#error').text(e.message);
