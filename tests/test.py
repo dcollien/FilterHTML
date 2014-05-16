@@ -11,7 +11,7 @@ f = open('tests/test1.out.html', 'r')
 html_out = f.read()
 f.close()
 
-result = FilterHTML.filter_html(html, test1.SPEC)
+result = FilterHTML.filter_html(html, test1.SPEC, remove=[])
 
 assert html_out.strip() == result.strip()
 
@@ -23,7 +23,7 @@ f = open('tests/test2.out.html', 'r')
 html_out = f.read()
 f.close()
 
-result = FilterHTML.filter_html(html, test2.SPEC)
+result = FilterHTML.filter_html(html, test2.SPEC, remove=[])
 
 assert html_out.strip() == result.strip()
 
@@ -53,8 +53,9 @@ def urlize(text, stack):
 	else:
 		return re.sub(URLIZE_RE, r'<a href="\1">\1</a>', text)
 
-
 result = FilterHTML.filter_html(html, test1.SPEC, text_filter=urlize)
 
 assert html_out.strip() == result.strip()
+
+print 'All Tests Passed'
 
