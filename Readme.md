@@ -1,6 +1,6 @@
 FilterHTML
 ---------
-v0.2 - White-list tags, attributes, classes, styles, and now with text filtering!
+v0.3 - White-list tags, attributes, classes, styles. With text filtering and style/script tag removal.
 
 A dictionary-defined white-listing HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
 
