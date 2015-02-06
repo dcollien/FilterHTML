@@ -678,6 +678,10 @@ class HTMLFilter(object):
       return None
 
    def purify_url(self, url):
+      # strip out all encoded tag characters
+      for escape_char in HTML_ESCAPE_CHARS.itervalues():
+         url = url.replace(escape_char, '')
+      
       if '//' not in self.allowed_schemes and url.startswith('//'):
          return '#' # disallow protocol-relative URLs (possible XSS vector)
 
