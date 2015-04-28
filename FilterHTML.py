@@ -193,7 +193,7 @@ HSLA_MATCH = re.compile(r'^hsla\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*,\s*(\d+\.)?\d+\
 
 MEASUREMENT_MATCH = re.compile(r'^(-?\d+(px|cm|pt|em|ex|pc|mm|in)?|\d+%)$')
 
-# states for navigating script tags (with pesky less-than "<" signs)
+# states for navigating script tags (tag body contains "<" signs)
 """
    data
    skip-data
@@ -495,9 +495,6 @@ class HTMLFilter(object):
          value = self.__filter_value(tag_name, attribute_name)
          if value is None:
             is_allowed = False
-      
-      elif is_allowed and None not in self.spec[tag_name][attribute_name]:
-         is_allowed = False
 
       elif self.curr_char not in self.attr_chars and self.curr_char != '>':
          self.__next() # skip invalid characters
@@ -517,6 +514,7 @@ class HTMLFilter(object):
 
          while self.__next() != quote:
             if self.curr_char == '':
+               raise HTMLSyntaxError('Attribute quote not closed: <' + tag_name + ' ' + attribute_name + '>')
                break
 
             value_chars.append(self.curr_char)
@@ -562,7 +560,8 @@ class HTMLFilter(object):
       if not purified:
          if attribute_name == "class" and isinstance(rules, list):
             candidate_values = value.split(' ')
-            allowed_values = set()
+            allowed_values_set = set()
+            allowed_values = []
 
             for candidate in candidate_values:
                for rule in rules:
@@ -574,8 +573,9 @@ class HTMLFilter(object):
                   elif candidate == rule:
                      new_class_value = candidate
 
-                  if new_class_value:
-                     allowed_values.add(new_class_value)
+                  if new_class_value and new_class_value not in allowed_values_set:
+                     allowed_values_set.add(new_class_value)
+                     allowed_values.append(new_class_value)
 
 
             value = ' '.join(allowed_values)
@@ -652,7 +652,7 @@ class HTMLFilter(object):
       else:
          return None
 
-      return ': '.join([name, value])
+      return ':'.join([name, value])
 
    def purify_color(self, value):
       value = value.lower()
