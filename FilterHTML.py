@@ -290,6 +290,14 @@ class HTMLFilter(object):
 
       return ''.join(self.filtered_html)
 
+   def __get_tag_spec(self, tag_name):
+      tag_spec = self.spec.get(tag_name, None)
+
+      if callable(tag_spec):
+         tag_spec = tag_spec(tag_name, self.tag_stack)
+
+      return tag_spec
+
    def __escape_data(self, char):
       if char in HTML_ESCAPE_CHARS:
          return HTML_ESCAPE_CHARS[char]
@@ -413,16 +421,22 @@ class HTMLFilter(object):
       self.__extract_whitespace()
 
       tag_name = self.__extract_tag_name()
+      tag_spec = self.__get_tag_spec(tag_name)
 
       if tag_name == 'script':
          self.state = 'script-data'
+      elif tag_spec == False:
+         self.tag_removing = tag_name
+         self.state = 'skip-data'
       elif tag_name in self.removals:
          self.tag_removing = tag_name
          self.state = 'skip-data'
 
       tag_name, attributes = self.__follow_aliases(tag_name)
       
-      if tag_name in self.spec:
+      is_recognised_tag = tag_spec is not None and tag_spec != False      
+
+      if is_recognised_tag:
          while self.curr_char != '>' and self.curr_char != '':
             self.__extract_whitespace()
             attribute = self.__filter_attribute(tag_name)
@@ -459,7 +473,10 @@ class HTMLFilter(object):
       
       tag_name, attributes = self.__follow_aliases(tag_name)
 
-      if tag_name in self.spec and tag_name not in VOID_ELEMENTS:
+      tag_spec = self.__get_tag_spec(tag_name)
+      is_recognised_tag = (tag_spec is not None) and (tag_spec != False)
+
+      if is_recognised_tag and tag_name not in VOID_ELEMENTS:
          self.__extract_whitespace()
          if self.curr_char == '>':
             tag_output = '</%s>' % (tag_name,)
@@ -476,7 +493,8 @@ class HTMLFilter(object):
       return tag_output
 
    def __filter_attribute(self, tag_name):
-      allowed_attributes = self.spec[tag_name].keys()
+      tag_spec = self.__get_tag_spec(tag_name)
+      allowed_attributes = tag_spec.keys()
       
       attribute_name = self.__extract_attribute_name()
       
@@ -528,8 +546,9 @@ class HTMLFilter(object):
       global_rules = None
 
       # retrieve element-specific rules for this attribute
-      if attribute_name in self.spec[tag_name]:
-         rules = self.spec[tag_name][attribute_name]
+      tag_spec = self.__get_tag_spec(tag_name)
+      if tag_spec is not None and attribute_name in tag_spec:
+         rules = tag_spec[attribute_name]
 
       # retrieve rules for this attribute global to all elements
       if attribute_name in self.global_attrs:

@@ -6,6 +6,7 @@
 FilterHTML.egg-info/
 build/
 dist/
+node_modules/
 
 *.egg
 

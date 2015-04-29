@@ -389,7 +389,6 @@ class TestFiltering(unittest.TestCase):
       """
 
       result = FilterHTML.filter_html(input_html, spec)
-      print_diff(expected_html, result)
       self.assertEqual(expected_html, result)
 
    def test_invalid_html(self):
@@ -527,6 +526,47 @@ class TestFiltering(unittest.TestCase):
 
       result = FilterHTML.filter_html(input_html, spec, text_filter=urlize)
 
+      self.assertEqual(expected_html, result)
+
+   def test_spec_delegate(self):
+      def allow_inside_span(tag_name, tag_stack):
+         is_inside_span = False
+         is_inside_div = False
+         for tag in tag_stack:
+            tag_name, attributes = tag
+            if tag_name == 'span':
+               is_inside_span = True
+            elif tag_name == 'div':
+               is_inside_div = True
+
+         if is_inside_span:
+            return {
+               'href': 'url'
+            }
+         elif is_inside_div:
+            return False # delete
+         else:
+            return None
+
+      spec = {
+         'span': {},
+         'div': {},
+         'a': allow_inside_span
+      }
+
+      input_html = """
+      <a href="invalid.html">Hello</a>
+      <span><a href="valid.html">Valid</a></span>
+      <div><a href="removed.html">Removed</a></div>
+      """
+
+      expected_html = """
+      Hello
+      <span><a href="valid.html">Valid</a></span>
+      <div></div>
+      """
+
+      result = FilterHTML.filter_html(input_html, spec)
       self.assertEqual(expected_html, result)
 
 if __name__ == '__main__':
