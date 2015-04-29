@@ -1,6 +1,6 @@
 FilterHTML
 ---------
-v0.3 - White-list tags, attributes, classes, styles. With tag-specific text filtering and tag contents removal.
+v0.5 - White-list tags, attributes, classes, styles. With tag-specific text filtering and tag contents removal.
 
 A dictionary-defined white-listing HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
 
@@ -69,6 +69,7 @@ What this does:
  - Lets you filter or match attributes on tags
  - Lets you filter or match individual CSS styles in style attributes
  - Lets you define allowed classes as a list
+ - Lets you specify a function delegate to define the specification for a tag, depending on which tags it is inside
  - Lets you specify a filtering function delegate for modifying text between tags (e.g. url auto-linking, emoticon parsing, #tagging, @mentioning, etc.), the output is also HTML filtered
  - Lets you convert one tag into another (with specified attributes)
  - Lets you completely remove contents of specified tags from HTML
