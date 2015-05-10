@@ -20,6 +20,10 @@ Node.js installation:
 
 Browser: use `./lib/FilterHTML.js` in a &lt;script&gt; tag
 
+Run Python Tests: `nosetests --with-coverage`
+
+Run JavaScript Tests: `nodeunit tests/run_tests.js`
+
 Example:
 
 ```python
