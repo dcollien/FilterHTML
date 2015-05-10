@@ -68,23 +68,22 @@ filtered_html = FilterHTML.filter_html(unfiltered_html, whitelist)
 
 
 What this does:
- - Lets you easily define a subset of HTML and it filters out everything else
- - Ensures there's no unicode encoding in attributes (e.g. &amp;#58; or \3A for CSS)
- - Lets you use regular expressions, lists, function delegates or built-ins as rules/filters
- - Lets you filter or match attributes on tags
- - Lets you filter or match individual CSS styles in style attributes
- - Lets you define allowed classes as a list
- - Lets you specify a function delegate to define the specification for a tag, depending on which tags it is inside
- - Lets you specify a filtering function delegate for modifying text between tags (e.g. url auto-linking, emoticon parsing, #tagging, @mentioning, etc.), the output is also HTML filtered
- - Lets you convert one tag into another (with specified attributes)
- - Lets you completely remove contents of specified tags from HTML
- - Helps to reduce XSS/code injection vulnerabilities
- - Runs server-side in Python (e.g. Flask, Bottle, Django) or Javascript (e.g. Node) 
- - The Javascript port can also be used for client-side filtering
+ - Lets you **easily define a subset of HTML** and it filters out everything else
+ - Ensures there's **no unicode** encoding in attributes (e.g. &amp;#58; or \3A for CSS)
+ - Lets you use **regular expressions, lists, function delegates or built-ins** as rules/filters
+ - Lets you filter or match **attributes** on tags
+ - Lets you filter or match individual **CSS styles** in style attributes
+ - Lets you define **allowed classes** as a list
+ - Lets you specify a function delegate to define the specification for a tag, **depending on which tags it is inside**
+ - Lets you specify a function delegate for modifying or **filtering text nodes**, i.e. text between tags (e.g. url auto-linking, emoticon parsing, #tagging, @mentioning, etc.), the output is also HTML filtered
+ - Lets you **convert one tag into another** (with specified attributes)
+ - Lets you **completely remove contents of specified tags** from HTML
+ - Runs server-side in **Python** (e.g. Flask, Bottle, Django) or **JavaScript** (e.g. Node.JS, IO.js, **Browser**) 
+ - Really helps to reduce XSS/code injection vulnerabilities
 
 What this doesn't do:
  - Clean up tag soup (use something else for that, like BeautifulSoup): this assumes the HTML is valid and complete. It will throw exceptions if it detects unclosed opening tags, or extra closing tags.
- - Claim to be XSS-safe out of the box: be careful with your white-list specification and test it thoroughly (here's a handy resource: https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet)
+ - Claim to be XSS-safe out of the box: be careful with your white-list specification and test it thoroughly (here's a handy resource: https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet).
 
 ### Class and Style filtering
  - parses the 'class' attribute into a list of values to match against allowed classes (list of values or regular expressions)
@@ -114,6 +113,7 @@ What this doesn't do:
   }
 }
 ```
+
 ### Text filtering/modification
  - Text (between tags) can be filtered or modified with a delegate function. This function is passed each string of text between tags, as well as a list of the tags this string is inside (and their attributes). The string is replaced with the output of this function, and it is also filtered according to the supplied white-list specification. 
 
