@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
    name='FilterHTML',
-   version='0.3.1',
+   version='0.5.0',
    py_modules=['FilterHTML'],
    author='David Collien',
    author_email='me@dcollien.com',

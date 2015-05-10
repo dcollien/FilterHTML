@@ -1,4 +1,4 @@
-var HTML_SPEC = {
+var HTML_WHITELIST = {
   'span': {
     'class': [
       'pull-left',

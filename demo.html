@@ -441,7 +441,7 @@
         var html = $(this).val();
         
         try {
-          var filtered_html = FilterHTML.filter_html(html, HTML_SPEC, null, modify_text, ['style']);
+          var filtered_html = FilterHTML.filter_html(html, HTML_SPEC, null, modify_text);
           $('#error').text('');
         } catch (e) {
           $('#error').text(e.message);

@@ -1,3 +1,5 @@
+import re
+
 HTML_WHITELIST = {
 	'div': {
 		'class': [

@@ -1,6 +1,6 @@
 FilterHTML
 ---------
-v0.3 - White-list tags, attributes, classes, styles. With tag-specific text filtering and tag contents removal.
+v0.5 - White-list tags, attributes, classes, styles. With tag-specific text filtering and tag contents removal.
 
 A dictionary-defined white-listing HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
 
@@ -69,6 +69,7 @@ What this does:
  - Lets you filter or match attributes on tags
  - Lets you filter or match individual CSS styles in style attributes
  - Lets you define allowed classes as a list
+ - Lets you specify a function delegate to define the specification for a tag, depending on which tags it is inside
  - Lets you specify a filtering function delegate for modifying text between tags (e.g. url auto-linking, emoticon parsing, #tagging, @mentioning, etc.), the output is also HTML filtered
  - Lets you convert one tag into another (with specified attributes)
  - Lets you completely remove contents of specified tags from HTML
@@ -84,8 +85,9 @@ What this doesn't do:
  - parses the 'class' attribute into a list of values to match against allowed classes (list of values or regular expressions)
  - parses the 'style' attribute to match each style against a list of allowed styles, each with individual rules
 
- e.g.
 
+ e.g.
+<pre>
     {
       'div': {
         # style filtering:
@@ -98,7 +100,6 @@ What this doesn't do:
           'border-radius': re.compile(r'^\d+px$')
         }
       },
-
       'span': {
         # class filtering (a list of allowed matches, strings, regex or functions):
         'class': [
@@ -107,7 +108,7 @@ What this doesn't do:
         ]
       }
     }
-
+</pre>
 ### Text filtering/modification
  - Text (between tags) can be filtered or modified with a delegate function. This function is passed each string of text between tags, as well as a list of the tags this string is inside (and their attributes). The string is replaced with the output of this function, and it is also filtered according to the supplied white-list specification. 
 
