@@ -4,7 +4,11 @@ v0.5 - White-list tags, attributes, classes, styles. With tag-specific text filt
 
 A dictionary-defined white-listing HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
 
-Python and JavaScript versions
+- Simple and Powerful
+- No dependencies
+- Python and JavaScript versions, each a **single file**:
+ - [FilterHTML.py](./FilterHTML.py)
+ - [FilterHTML.js](./lib/FilterHTML.js)
 
 Python installation:
     
@@ -14,7 +18,7 @@ Node.js installation:
 
     npm install filterhtml
 
-Browser: copy `./lib/FilterHTML.js` into your project
+Browser: use `./lib/FilterHTML.js` in a &lt;script&gt; tag
 
 Example:
 
