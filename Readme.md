@@ -24,7 +24,7 @@ Run Python Tests: `nosetests --with-coverage`
 
 Run JavaScript Tests: `nodeunit tests/run_tests.js`
 
-Example:
+Filtering Example, in Python:
 
 ```python
 import FilterHTML
