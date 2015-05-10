@@ -154,9 +154,85 @@ N.B. the output HTML of the urlize function is also HTML filtered using the same
  Matching can also be done against regular expressions or a list of allowed values. Values can also be passed through custom filtering functions.
 
 ### White-list
-Define an allowed HTML subset as a JSON object (for the JS version) or a Python dictionary.
+Define an allowed HTML subset as a JavaScript Object/Python Dictionary.
 
 For regular expression filters, you can use /pattern/modifiers syntax in JavaScript (or new RegExp), or in Python: re.compile()
+
+White-list format for allowing a tag can use many combinations of different filtering options, e.g.
+
+    {
+      "tag_name_a": {
+        # attribute filtering by list of allowed values, built-in, regex, function delegate,
+        # or a list of these types
+        "attribute_a": ["allowed-value", "another-allowed-value"],
+        "attribute_b": "url",
+        "attribute_c": re.compile(r'^regex$'),
+        "attribute_d": attribute_filtering_function,
+        "attribute_e": [
+          "allowed-value",
+          re.compile(r'^regex$'),
+          attribute_filtering_function
+        ],
+
+        # class filtering by a list of allowed values, or class-name matching regex
+        "class": [
+          "allowed-class-name",
+          "another-allowed-class-name",
+          re.compile(r'^class-name-regex$')
+        ],
+
+        # style filtering by object of allowed styles
+        # filtered by: build-in, list of allowed values, regex, function delegate
+        "style": {
+          "style-name-a": "color",
+          "style-name-b": [
+            "value-1", "value-2"
+          ],
+          "style-name-c": re.compile(r'^regex$'),
+          "style-name-d": style_filtering_functon
+        }
+      },
+
+      # Allow this tag, but no attributes
+      "tag_name_b": {},
+
+      # Use a function delegate to specify this tag's white-list
+      "tag_name_c": tag_filtering_function,
+
+      # Remove this tag, and all its contents
+      "tag_name_d": false,
+
+      # Unlisted tags will be removed, but their contents left in-tact
+    }
+
+White-list tag filtering functions are defined as:
+
+    def tag_filtering_function(tag_name, tag_stack):
+      # tag_name: the name of the tag being filtered
+      # tag_stack: a list of (tag_name, attributes) for each tag
+      #            above the current tag (in its parsing context)
+      #            where the last in the list is the direct parent tag
+
+      # Delete this tag and all its contents
+      return False
+
+      # Delete this tag, but not its contents
+      return None
+
+      # Return a custom specification for how to filter this tag
+      return {
+        'attribute_name': ['attribute_value']
+      }
+
+Attribute/Style filtering functions are defined as:
+
+    def attr_filter(attribute_value):
+      return "new-attribute-value"
+      # or return None, or return '' to remove this attribute
+
+    def style_filter(style_value):
+      return "new-style-value"
+      # or return None, or return '' to remove this style
 
 Python example whitelist:
 
