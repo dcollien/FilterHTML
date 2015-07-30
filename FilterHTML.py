@@ -193,7 +193,7 @@ HSLA_MATCH = re.compile(r'^hsla\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*,\s*(\d+\.)?\d+\
 
 MEASUREMENT_MATCH = re.compile(r'^(-?\d+(px|cm|pt|em|ex|pc|mm|in)?|\d+%)$')
 
-# states for navigating script tags (with pesky less-than "<" signs)
+# states for navigating script tags (tag body contains "<" signs)
 """
    data
    skip-data
@@ -289,6 +289,14 @@ class HTMLFilter(object):
          raise TagMismatchError(error)
 
       return ''.join(self.filtered_html)
+
+   def __get_tag_spec(self, tag_name):
+      tag_spec = self.spec.get(tag_name, None)
+
+      if callable(tag_spec):
+         tag_spec = tag_spec(tag_name, self.tag_stack)
+
+      return tag_spec
 
    def __escape_data(self, char):
       if char in HTML_ESCAPE_CHARS:
@@ -413,16 +421,22 @@ class HTMLFilter(object):
       self.__extract_whitespace()
 
       tag_name = self.__extract_tag_name()
+      tag_spec = self.__get_tag_spec(tag_name)
 
       if tag_name == 'script':
          self.state = 'script-data'
+      elif tag_spec == False:
+         self.tag_removing = tag_name
+         self.state = 'skip-data'
       elif tag_name in self.removals:
          self.tag_removing = tag_name
          self.state = 'skip-data'
 
       tag_name, attributes = self.__follow_aliases(tag_name)
       
-      if tag_name in self.spec:
+      is_recognised_tag = tag_spec is not None and tag_spec != False      
+
+      if is_recognised_tag:
          while self.curr_char != '>' and self.curr_char != '':
             self.__extract_whitespace()
             attribute = self.__filter_attribute(tag_name)
@@ -459,7 +473,10 @@ class HTMLFilter(object):
       
       tag_name, attributes = self.__follow_aliases(tag_name)
 
-      if tag_name in self.spec and tag_name not in VOID_ELEMENTS:
+      tag_spec = self.__get_tag_spec(tag_name)
+      is_recognised_tag = (tag_spec is not None) and (tag_spec != False)
+
+      if is_recognised_tag and tag_name not in VOID_ELEMENTS:
          self.__extract_whitespace()
          if self.curr_char == '>':
             tag_output = '</%s>' % (tag_name,)
@@ -476,7 +493,8 @@ class HTMLFilter(object):
       return tag_output
 
    def __filter_attribute(self, tag_name):
-      allowed_attributes = self.spec[tag_name].keys()
+      tag_spec = self.__get_tag_spec(tag_name)
+      allowed_attributes = tag_spec.keys()
       
       attribute_name = self.__extract_attribute_name()
       
@@ -495,9 +513,6 @@ class HTMLFilter(object):
          value = self.__filter_value(tag_name, attribute_name)
          if value is None:
             is_allowed = False
-      
-      elif is_allowed and None not in self.spec[tag_name][attribute_name]:
-         is_allowed = False
 
       elif self.curr_char not in self.attr_chars and self.curr_char != '>':
          self.__next() # skip invalid characters
@@ -517,6 +532,7 @@ class HTMLFilter(object):
 
          while self.__next() != quote:
             if self.curr_char == '':
+               raise HTMLSyntaxError('Attribute quote not closed: <' + tag_name + ' ' + attribute_name + '>')
                break
 
             value_chars.append(self.curr_char)
@@ -530,8 +546,9 @@ class HTMLFilter(object):
       global_rules = None
 
       # retrieve element-specific rules for this attribute
-      if attribute_name in self.spec[tag_name]:
-         rules = self.spec[tag_name][attribute_name]
+      tag_spec = self.__get_tag_spec(tag_name)
+      if tag_spec is not None and attribute_name in tag_spec:
+         rules = tag_spec[attribute_name]
 
       # retrieve rules for this attribute global to all elements
       if attribute_name in self.global_attrs:
@@ -562,7 +579,8 @@ class HTMLFilter(object):
       if not purified:
          if attribute_name == "class" and isinstance(rules, list):
             candidate_values = value.split(' ')
-            allowed_values = set()
+            allowed_values_set = set()
+            allowed_values = []
 
             for candidate in candidate_values:
                for rule in rules:
@@ -574,8 +592,9 @@ class HTMLFilter(object):
                   elif candidate == rule:
                      new_class_value = candidate
 
-                  if new_class_value:
-                     allowed_values.add(new_class_value)
+                  if new_class_value and new_class_value not in allowed_values_set:
+                     allowed_values_set.add(new_class_value)
+                     allowed_values.append(new_class_value)
 
 
             value = ' '.join(allowed_values)
@@ -652,7 +671,7 @@ class HTMLFilter(object):
       else:
          return None
 
-      return ': '.join([name, value])
+      return ':'.join([name, value])
 
    def purify_color(self, value):
       value = value.lower()
@@ -678,6 +697,13 @@ class HTMLFilter(object):
       return None
 
    def purify_url(self, url):
+      # strip out all encoded tag characters
+      for escape_char in HTML_ESCAPE_CHARS.itervalues():
+         url = url.replace(escape_char, '')
+      
+      if '//' not in self.allowed_schemes and url.startswith('//'):
+         return '#' # disallow protocol-relative URLs (possible XSS vector)
+
       parts = url.split(':')
       scheme = ''
       if len(parts) > 1:

@@ -2,13 +2,14 @@
   "author": "David Collien",
   "name": "filterhtml",
   "description": "FilterHTML: A whitelisting HTML filter for Python and JavaScript",
-  "version": "0.3.2",
+  "version": "0.5.0",
   "repository": {
     "url": "https://github.com/dcollien/FilterHTML"
   },
   "main": "./lib/FilterHTML",
   "keywords": [
     "html",
+    "clean",
     "filter",
     "xss",
     "whitelist",
