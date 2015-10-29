@@ -619,5 +619,37 @@ class TestFiltering(unittest.TestCase):
 
       self.assertEqual(expected_html, result)
 
+   def test_regex_attribute_name_delegates(self):
+
+      spec = {
+         'span': {
+            re.compile(r'^data-[\w-]+$'): ['true', 'false'],
+            'id': ['test']
+         },
+      }
+
+      input_html = """
+      <span data-attr-one="true">Span content</span>
+      <span data-attr-two="true" data-attribute-three="false">Span content</span>
+      <span id="remove-me" data-test="true">Span content</span>
+      <span id="test" data-test="true">Span content</span>
+      <span width="100px">Span content</span>
+      <div data-foobar="false">Tag and Attribute allowed</div>
+      """
+
+      expected_html = """
+      <span data-attr-one="true">Span content</span>
+      <span data-attr-two="true" data-attribute-three="false">Span content</span>
+      <span data-test="true">Span content</span>
+      <span id="test" data-test="true">Span content</span>
+      <span>Span content</span>
+      Tag and Attribute allowed
+      """
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+
 if __name__ == '__main__':
     unittest.main()

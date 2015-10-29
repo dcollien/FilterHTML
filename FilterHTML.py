@@ -500,7 +500,7 @@ class HTMLFilter(object):
       
       whitespace = self.__extract_whitespace()
 
-      is_allowed = ('*' in allowed_attributes) or (attribute_name in allowed_attributes) or (attribute_name in self.global_attrs)
+      is_allowed = ('*' in allowed_attributes) or (attribute_name in allowed_attributes) or (attribute_name in self.global_attrs) or (any(regex.match(attribute_name) for regex in allowed_attributes if isinstance(regex, re._pattern_type)))
       
       assignment = ''
       value = None
@@ -551,6 +551,12 @@ class HTMLFilter(object):
          rules = tag_spec[attribute_name]
       elif tag_spec is not None and '*' in tag_spec:
          rules = tag_spec['*']
+      elif tag_spec is not None:
+         # Own implementation of pythons "any" to return correct rules value instead of boolean
+         for idx, regex in enumerate(tag_spec):
+            if isinstance(regex, re._pattern_type):
+               rules = tag_spec.values()[idx]
+               break
 
       # retrieve rules for this attribute global to all elements
       if attribute_name in self.global_attrs:
