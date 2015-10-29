@@ -500,8 +500,8 @@ class HTMLFilter(object):
       
       whitespace = self.__extract_whitespace()
 
-      is_allowed = (attribute_name in allowed_attributes) or (attribute_name in self.global_attrs)
-
+      is_allowed = ('*' in allowed_attributes) or (attribute_name in allowed_attributes) or (attribute_name in self.global_attrs)
+      
       assignment = ''
       value = None
       if self.curr_char == '=':
@@ -549,6 +549,8 @@ class HTMLFilter(object):
       tag_spec = self.__get_tag_spec(tag_name)
       if tag_spec is not None and attribute_name in tag_spec:
          rules = tag_spec[attribute_name]
+      elif tag_spec is not None and '*' in tag_spec:
+         rules = tag_spec['*']
 
       # retrieve rules for this attribute global to all elements
       if attribute_name in self.global_attrs:
@@ -622,6 +624,8 @@ class HTMLFilter(object):
       if UNICODE_ESCAPE in value:
          # disallow &# in values (can be used for encoding disallowed characters)
          value = None
+      elif rules == "*":
+         value = value
       elif isinstance(rules, re._pattern_type):
          value = self.purify_regex(value, rules)
       elif rules == "url":
