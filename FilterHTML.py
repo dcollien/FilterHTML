@@ -518,10 +518,14 @@ class HTMLFilter(object):
          self.__next() # skip invalid characters
          is_allowed = False
 
+      
       if is_allowed:
-         return  '%s=%s' % (attribute_name, value)
-      else:
-         return None
+         if value == True:
+            return '%s' % attribute_name
+         elif value is not None:
+            return  '%s=%s' % (attribute_name, value)
+
+      return None
 
 
    def __filter_value(self, tag_name, attribute_name):
@@ -569,6 +573,9 @@ class HTMLFilter(object):
 
       if new_value is None or new_value == '':
          return None
+      elif new_value == True:
+         # empty attribute
+         return True
       else:
          return '%s%s%s' % (quote, new_value, quote)
 
@@ -624,6 +631,8 @@ class HTMLFilter(object):
          value = None
       elif isinstance(rules, re._pattern_type):
          value = self.purify_regex(value, rules)
+      elif rules == "empty":
+         value = True
       elif rules == "url":
          value = self.purify_url(value)
       elif rules == "color":
