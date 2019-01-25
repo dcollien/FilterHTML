@@ -4,8 +4,13 @@ import string
 TRANS_TABLE = string.maketrans('','')
 TAG_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz123456")
 ATTR_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz-")
+UNQUOTED_INVALID_VALUES = frozenset("\"'`=<>")
 UNICODE_ESCAPE = '&#'
 CSS_ESCAPE = re.compile(r'^.*\\[0-9A-Fa-f].*$')
+INVALID_ATTRIBUTE_REPLACEMENTS = {
+   "url": "#"
+}
+
 VOID_ELEMENTS = [
    'area',
    'base',
@@ -33,8 +38,13 @@ VOID_ELEMENTS = [
 HTML_ESCAPE_CHARS = {
    '>': '&gt;',
    '<': '&lt;',
-   '"': '&quot;'
+   '"': '&quot;',
+   '\'': '&apos;',
+   '&': '&amp;',
+   ';': '&semi;'
 }
+
+ENTITY_MATCH = re.compile(r'(\&[\#\d\w]+;)')
 
 # predefined HTML colors
 HTML_COLORS = frozenset([
@@ -505,13 +515,13 @@ class HTMLFilter(object):
       value = None
       if self.curr_char == '=':
          self.__next() # nom the =
-
-         self.__extract_whitespace()
          value = self.__filter_value(tag_name, attribute_name)
          if value is None:
             is_allowed = False
 
       elif self.curr_char not in self.attr_chars and self.curr_char != '>':
+         # if the current character is invalid, but also isn't the closing character
+         # (this includes skipping the '/' in self-closing tags)
          self.__next() # skip invalid characters
          is_allowed = False
 
@@ -526,9 +536,14 @@ class HTMLFilter(object):
 
       return None
 
+   def __is_valid_unquoted_attribute_character(self, character):
+      return character not in UNQUOTED_INVALID_VALUES and not character.isspace()
 
    def __filter_value(self, tag_name, attribute_name):
       value_chars = []
+
+      num_spaces = len(self.__extract_whitespace())
+
       quote = '"'
       if self.curr_char == "'" or self.curr_char == '"':
          quote = self.curr_char
@@ -541,6 +556,11 @@ class HTMLFilter(object):
 
          # nom the quote
          self.__next()
+      elif num_spaces == 0 and self.__is_valid_unquoted_attribute_character(self.curr_char):
+         # parse unquoted attributes
+         value_chars.append(self.curr_char)
+         while self.__is_valid_unquoted_attribute_character(self.__next()):
+            value_chars.append(self.curr_char)
 
       value = ''.join(value_chars)
       
@@ -601,8 +621,10 @@ class HTMLFilter(object):
                      allowed_values_set.add(new_class_value)
                      allowed_values.append(new_class_value)
 
-
-            value = ' '.join(allowed_values)
+            if len(allowed_values) > 0:
+               value = ' '.join(allowed_values)
+            else:
+               value = None
          elif attribute_name == "style" and isinstance(rules, dict):
             candidate_values = value.split(';')
 
@@ -643,21 +665,35 @@ class HTMLFilter(object):
       elif rules == "int":
          value = self.purify_int(value)
       elif rules == "alpha":
-         value = self.purify_set(value, string.ascii_letters)
+         if value == '':
+            value = None
+         else:
+            value = self.purify_set(value, string.ascii_letters)
       elif rules == "alphanumeric":
-         value = self.purify_set(value, string.ascii_letters + string.digits)
+         if value == '':
+            value = None
+         else:
+            value = self.purify_set(value, string.ascii_letters + string.digits)
       elif rules == "alpha|empty":
          if value != '':
             value = self.purify_set(value, string.ascii_letters)
       elif rules == "alphanumeric|empty":
          if value != '':
             value = self.purify_set(value, string.ascii_letters + string.digits)
+      elif rules == "text":
+         value = self.purify_text(value)
       elif isinstance(rules, str) and rules.startswith('[') and rules.endswith(']'):
-         value = self.purify_set(value, rules[1:-1])
+         if value == '':
+            value = None
+         else:
+            value = self.purify_set(value, rules[1:-1])
       elif callable(rules):
          value = rules(value)
       else:
          purified = False
+
+      if value is None and rules in INVALID_ATTRIBUTE_REPLACEMENTS:
+         value = INVALID_ATTRIBUTE_REPLACEMENTS[rules]
 
       return value, purified
 
@@ -714,11 +750,11 @@ class HTMLFilter(object):
 
    def purify_url(self, url):
       # strip out all encoded tag characters
-      for escape_char in HTML_ESCAPE_CHARS.itervalues():
+      for escape_char in ['<', '>']:
          url = url.replace(escape_char, '')
       
       if '//' not in self.allowed_schemes and url.startswith('//'):
-         return '#' # disallow protocol-relative URLs (possible XSS vector)
+         return None # disallow protocol-relative URLs (possible XSS vector)
 
       parts = url.split(':')
       scheme = ''
@@ -726,19 +762,19 @@ class HTMLFilter(object):
          scheme = parts[0]
          if '/' in scheme or '#' in scheme:
             scheme = ''
-            url = '#'
+            url = None
          else:
             url = ':'.join(parts[1:])
 
       if scheme == '':
          if url == '':
-            return '#'
+            return None
          else:
             return url
       elif scheme.lower() in self.allowed_schemes:
          return '%s:%s' % (scheme, url)
       else:
-         return '#'
+         return None
 
    def purify_int(self, value):
       try:
@@ -762,6 +798,16 @@ class HTMLFilter(object):
          return value
       else:
          return None
+
+   def purify_text(self, value):
+      entities = set(ENTITY_MATCH.findall(value))
+      new_text = []
+      for chunk in ENTITY_MATCH.split(value):
+         if chunk not in entities:
+            chunk = ''.join([self.__escape_data(char) for char in chunk])
+         new_text.append(chunk)
+
+      return ''.join(new_text)
 
 def filter_html(html, spec, **kwargs):
    html_filter = HTMLFilter(spec, **kwargs)
