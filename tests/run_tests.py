@@ -11,6 +11,86 @@ def print_diff(expected_html, result):
    print(''.join(d.compare(expected_html, result)))
 
 class TestFiltering(unittest.TestCase):
+   def test_unquoted_urls(self):
+      spec = {
+         'a': {
+            'href': 'url',
+            'checked': 'boolean'
+         }
+      }
+
+      input_html = "<a href=http://www.example.com></a>"
+      expected_html = "<a href=\"http://www.example.com\"></a>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+      input_html = "<a href= checked></a>"
+      expected_html = "<a href=\"#\" checked></a>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+   def test_boolean_attrs(self):
+      spec = {
+         'input': {
+            'type': 'alpha',
+            'checked': 'boolean'
+         }
+      }
+
+      input_html = "<input type=\"checkbox\" checked>"
+      expected_html = "<input type=\"checkbox\" checked>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+      input_html = "<input type=checkbox checked>"
+      expected_html = "<input type=\"checkbox\" checked>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+   
+      input_html = "<input type= checked>"
+      expected_html = "<input checked>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+   def test_text_attrs(self):
+      spec = {
+         'img': {
+            'src': 'url',
+            'alt': 'alphanumeric|empty'
+         }
+      }
+
+      input_html = "<img src=\"\" alt=\"\">"
+      expected_html = "<img src=\"#\" alt=\"\">"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+      spec = {
+         'img': {
+            'src': 'url',
+            'alt': 'text',
+         }
+      }
+      input_html = "<img src=\"\" alt='\"hello!\" <THIS> & is encoded &quot; &;'>"
+      expected_html = "<img src=\"#\" alt='&quot;hello!&quot; &lt;THIS&gt; &amp; is encoded &quot; &amp;&semi;'>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
    def test_no_attrs(self):
       spec = {
          'b': {},
@@ -385,7 +465,7 @@ class TestFiltering(unittest.TestCase):
       <span>This is a test</span>
       <pre>
          if (x &lt; 4) {
-            x = 1 &lt;&lt; 2;
+            x = 1 &lt;&lt; 2&semi;
          }
       </pre><br>
       """
@@ -458,28 +538,28 @@ class TestFiltering(unittest.TestCase):
       expected_html = """
       <a href="#"></a>
       <a href="#"></a>
-      <a></a>
-      <a></a>
       <a href="#"></a>
-      <a></a>
       <a href="#"></a>
-      <a></a>
-      <a></a>
       <a href="#"></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
       <a href="#"></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
       """
 
       result = FilterHTML.filter_html(input_html, spec)
