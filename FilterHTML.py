@@ -471,7 +471,7 @@ class HTMLFilter(object):
          self.state = 'data'
          self.tag_removing == None
       
-      tag_name, attributes = self.__follow_aliases(tag_name)
+      tag_name, _ = self.__follow_aliases(tag_name)
 
       tag_spec = self.__get_tag_spec(tag_name)
       is_recognised_tag = (tag_spec is not None) and (tag_spec != False)
@@ -484,7 +484,7 @@ class HTMLFilter(object):
             if len(self.tag_stack) == 0:
                raise TagMismatchError('Closing tag </%s> not found %d:%d' % (tag_name, self.line, self.row)) 
 
-            opening_tag_name, attributes = self.tag_stack.pop()
+            opening_tag_name, _ = self.tag_stack.pop()
             if opening_tag_name != tag_name:
                raise TagMismatchError('Opening tag <%s> does not match closing tag </%s> %d:%d' % (opening_tag_name, tag_name, self.line, self.row))
       else:
@@ -498,15 +498,12 @@ class HTMLFilter(object):
       
       attribute_name = self.__extract_attribute_name()
       
-      whitespace = self.__extract_whitespace()
+      self.__extract_whitespace()
 
       is_allowed = (attribute_name in allowed_attributes) or (attribute_name in self.global_attrs)
 
-      assignment = ''
       value = None
       if self.curr_char == '=':
-         assignment = '='
-         
          self.__next() # nom the =
 
          self.__extract_whitespace()
@@ -518,6 +515,8 @@ class HTMLFilter(object):
          self.__next() # skip invalid characters
          is_allowed = False
 
+      elif tag_spec is not None and tag_spec.get(attribute_name) == "boolean":
+         value = True
       
       if is_allowed:
          if value == True:
@@ -537,7 +536,6 @@ class HTMLFilter(object):
          while self.__next() != quote:
             if self.curr_char == '':
                raise HTMLSyntaxError('Attribute quote not closed: <' + tag_name + ' ' + attribute_name + '>')
-               break
 
             value_chars.append(self.curr_char)
 
@@ -571,17 +569,17 @@ class HTMLFilter(object):
       if global_rules is not None and (new_value is None or new_value == ''):
          new_value = self.__purify_attribute(attribute_name, value, global_rules)
 
-      if new_value is None or new_value == '':
+      if new_value is None:
          return None
       elif new_value == True:
-         # empty attribute
+         # boolean attribute
          return True
       else:
          return '%s%s%s' % (quote, new_value, quote)
 
    def __purify_attribute(self, attribute_name, value, rules):
       
-      value, purified = self.purify_value(value, rules)
+      value, purified = self.purify_value(value, rules, attribute_name=attribute_name)
 
       if not purified:
          if attribute_name == "class" and isinstance(rules, list):
@@ -617,13 +615,13 @@ class HTMLFilter(object):
             if len(allowed_values) > 0:
                value = ';'.join(allowed_values) + ';'
             else:
-               value = ''
+               value = None
          elif value not in rules:
-            value = ''
+            value = None
 
       return value
 
-   def purify_value(self, value, rules):
+   def purify_value(self, value, rules, attribute_name=None):
       purified = True
 
       if UNICODE_ESCAPE in value:
@@ -631,8 +629,11 @@ class HTMLFilter(object):
          value = None
       elif isinstance(rules, re._pattern_type):
          value = self.purify_regex(value, rules)
-      elif rules == "empty":
-         value = True
+      elif rules == "boolean":
+         if value == "" or (attribute_name is not None and value == attribute_name):
+            value = True
+         else:
+            value = None
       elif rules == "url":
          value = self.purify_url(value)
       elif rules == "color":
@@ -645,6 +646,12 @@ class HTMLFilter(object):
          value = self.purify_set(value, string.ascii_letters)
       elif rules == "alphanumeric":
          value = self.purify_set(value, string.ascii_letters + string.digits)
+      elif rules == "alpha|empty":
+         if value != '':
+            value = self.purify_set(value, string.ascii_letters)
+      elif rules == "alphanumeric|empty":
+         if value != '':
+            value = self.purify_set(value, string.ascii_letters + string.digits)
       elif isinstance(rules, str) and rules.startswith('[') and rules.endswith(']'):
          value = self.purify_set(value, rules[1:-1])
       elif callable(rules):
@@ -724,7 +731,10 @@ class HTMLFilter(object):
             url = ':'.join(parts[1:])
 
       if scheme == '':
-         return url
+         if url == '':
+            return '#'
+         else:
+            return url
       elif scheme.lower() in self.allowed_schemes:
          return '%s:%s' % (scheme, url)
       else:
@@ -734,16 +744,16 @@ class HTMLFilter(object):
       try:
          return str(int(value))
       except ValueError:
-         return ''
+         return None
 
    def purify_set(self, value, allowed_chars):
       if isinstance(value, unicode) or isinstance(allowed_chars, unicode):
          translation_table = dict.fromkeys(map(ord, allowed_chars), None)
          if value.translate(translation_table):
-            value = ''
+            value = None
       else:
          if value.translate(self.trans_table, allowed_chars):
-            value = ''
+            value = None
 
       return value
    
@@ -751,7 +761,7 @@ class HTMLFilter(object):
       if regex.match(value):
          return value
       else:
-         return ''
+         return None
 
 def filter_html(html, spec, **kwargs):
    html_filter = HTMLFilter(spec, **kwargs)
