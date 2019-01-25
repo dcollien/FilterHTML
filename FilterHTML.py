@@ -1,7 +1,28 @@
 import re
 import string
 
-TRANS_TABLE = string.maketrans('','')
+def p2to3isunicode(s, t):
+   """ Helper for python 2/3 to detect unicode string """
+   try:
+      return isinstance(s, unicode) or isinstance(t, unicode)  # p2
+   except NameError:
+      return isinstance(s, str) or isinstance(t, str)  # p3
+
+def p2to3itervalues(g):
+   """ Helper for itervalues """
+   try:
+      return g.itervalues()
+   except AttributeError:
+      return g.values()
+
+def p2to3maketrans(a, b):
+   try:
+      return string.maketrans(a, b)
+   except AttributeError:
+      return str.maketrans(a, b)
+
+TRANS_TABLE = p2to3maketrans('','')
+
 TAG_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz123456")
 ATTR_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz-")
 UNICODE_ESCAPE = '&#'
@@ -336,7 +357,7 @@ class HTMLFilter(object):
 
    def __next(self):
       try:
-         return self.chars.next()
+         return next(self.chars)
       except StopIteration:
          self.curr_char = ''
          return ''
@@ -698,7 +719,7 @@ class HTMLFilter(object):
 
    def purify_url(self, url):
       # strip out all encoded tag characters
-      for escape_char in HTML_ESCAPE_CHARS.itervalues():
+      for escape_char in p2to3itervalues(HTML_ESCAPE_CHARS):
          url = url.replace(escape_char, '')
       
       if '//' not in self.allowed_schemes and url.startswith('//'):
@@ -728,7 +749,7 @@ class HTMLFilter(object):
          return ''
 
    def purify_set(self, value, allowed_chars):
-      if isinstance(value, unicode) or isinstance(allowed_chars, unicode):
+      if p2to3isunicode(value, allowed_chars):
          translation_table = dict.fromkeys(map(ord, allowed_chars), None)
          if value.translate(translation_table):
             value = ''

@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import unittest, re
 
 import FilterHTML
@@ -6,7 +8,7 @@ def print_diff(expected_html, result):
    import difflib
 
    d = difflib.Differ()
-   print ''.join(d.compare(expected_html, result))
+   print(''.join(d.compare(expected_html, result)))
 
 class TestFiltering(unittest.TestCase):
    def test_no_attrs(self):
