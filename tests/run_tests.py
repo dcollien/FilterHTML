@@ -11,6 +11,14 @@ def print_diff(expected_html, result):
    print(''.join(d.compare(expected_html, result)))
 
 class TestFiltering(unittest.TestCase):
+   def test_escape_data(self):
+      input_html = "-&gt;"
+      expected_html = "-&gt;"
+
+      result = FilterHTML.filter_html(input_html, {})
+
+      self.assertEqual(expected_html, result)
+
    def test_unquoted_urls(self):
       spec = {
          'a': {
