@@ -481,6 +481,27 @@ class TestFiltering(unittest.TestCase):
       result = FilterHTML.filter_html(input_html, spec)
       self.assertEqual(expected_html, result)
 
+   def test_script_noeffect(self):
+      spec = {
+         'span': {},
+         'br': {},
+         'pre': {},
+         'script': True
+      }
+
+      input_html = """
+      <span>This is a test</span>
+      <script>
+         if (x < 4) {
+            x = 1 << 2;
+         }
+      </script><br>
+      """
+
+      result = FilterHTML.filter_html(input_html, spec)
+      self.assertEqual(input_html, result)
+
+
    def test_invalid_html(self):
       spec = {
          'b': {},

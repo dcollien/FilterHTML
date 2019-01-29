@@ -59,10 +59,13 @@ VOID_ELEMENTS = [
 HTML_ESCAPE_CHARS = {
    '>': '&gt;',
    '<': '&lt;',
+   '&': '&amp;',
+   ';': '&semi;',
+}
+
+HTML_ESCAPE_QUOTES = {
    '"': '&quot;',
    '\'': '&apos;',
-   '&': '&amp;',
-   ';': '&semi;'
 }
 
 ENTITY_MATCH = re.compile(r'(\&[\#\d\w]+;)')
@@ -279,40 +282,48 @@ class HTMLFilter(object):
       self.filtered_html = []
       self.tag_stack = []
 
+      is_script_processed = not self.remove_scripts
+      is_script_escaped = 'script' in self.spec and isinstance(self.spec['script'], str)
+
       text_chars = []
       while self.__next():
          if self.curr_char == '<':
+            # opening tag symbol
 
-            # filtered text
-            filtered_text = self.__filter_text(text_chars)
+            # collect tag text so far
+            if self.state == 'script-data' and not is_script_escaped:
+               # un-modified
+               tag_text = [] + text_chars
+            else:
+               # filtered/escaped
+               tag_text = self.__filter_text(text_chars)
 
-            # start of tag
+            # start of tag (modifies state)
             tag_output = self.__filter_tag()
 
             if self.state == 'script-data-less-than-sign':
                # tag was not filtered, append the consumed text
-               if not self.remove_scripts:
-                  if 'script' in self.spec and isinstance(self.spec['script'], str):
-                     text_chars.append(self.__escape_data('<'))
-                  else:
-                     text_chars.append('<')
-                  text_chars.append(self.__escape_data(self.curr_char))
+               if is_script_processed:
+                  text_chars.append('<')
+                  text_chars.append(self.curr_char)
 
                self.state = 'script-data'
             else:
-               self.filtered_html += filtered_text
+               self.filtered_html += tag_text
+               
                text_chars = []
                self.filtered_html.append(tag_output)
          else:
-            if self.state == 'script-data' and self.remove_scripts:
+            # any other symbol
+            if self.state == 'script-data' and not is_script_processed:
                pass
             elif self.state == 'skip-data':
-               pass
+               pass # skip
             else:
-               # collect text characters and escape them
-               text_chars.append(self.__escape_data(self.curr_char))
+               # collect text characters
+               text_chars.append(self.curr_char)
 
-      # filter and add any leftover text
+      # add any leftover text
       self.filtered_html += self.__filter_text(text_chars)
 
       if len(self.tag_stack) != 0:
@@ -329,9 +340,11 @@ class HTMLFilter(object):
 
       return tag_spec
 
-   def __escape_data(self, char):
+   def __escape_data(self, char, include_quotes=False):
       if char in HTML_ESCAPE_CHARS:
          return HTML_ESCAPE_CHARS[char]
+      elif include_quotes and char in HTML_ESCAPE_QUOTES:
+         return HTML_ESCAPE_QUOTES[char]
       else:
          return char
 
@@ -348,7 +361,8 @@ class HTMLFilter(object):
 
          filtered_html += list(filtered_text)
       else:
-         filtered_html += text_chars
+         filtered_html += list(self.purify_text(''.join(text_chars)))
+
 
       return filtered_html
 
@@ -702,7 +716,7 @@ class HTMLFilter(object):
          if value != '':
             value = self.purify_set(value, string.ascii_letters + string.digits)
       elif rules == "text":
-         value = self.purify_text(value)
+         value = self.purify_text(value, include_quotes=True)
       elif isinstance(rules, str) and rules.startswith('[') and rules.endswith(']'):
          if value == '':
             value = None
@@ -820,12 +834,12 @@ class HTMLFilter(object):
       else:
          return None
 
-   def purify_text(self, value):
+   def purify_text(self, value, include_quotes=False):
       entities = set(ENTITY_MATCH.findall(value))
       new_text = []
       for chunk in ENTITY_MATCH.split(value):
          if chunk not in entities:
-            chunk = ''.join([self.__escape_data(char) for char in chunk])
+            chunk = ''.join([self.__escape_data(char, include_quotes) for char in chunk])
          new_text.append(chunk)
 
       return ''.join(new_text)
