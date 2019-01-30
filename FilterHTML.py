@@ -1,11 +1,50 @@
 import re
 import string
 
-TRANS_TABLE = string.maketrans('','')
+def p2to3isunicode(s, t):
+   """ Helper for python 2/3 to detect unicode string """
+   try:
+      return isinstance(s, unicode) or isinstance(t, unicode)  # p2
+   except NameError:
+      return isinstance(s, str) or isinstance(t, str)  # p3
+
+def p2to3itervalues(g):
+   """ Helper for itervalues """
+   try:
+      return g.itervalues()
+   except AttributeError:
+      return g.values()
+
+def p2to3maketrans(a, b):
+   try:
+      return string.maketrans(a, b)
+   except AttributeError:
+      return str.maketrans(a, b)
+
+TRANS_TABLE = p2to3maketrans('','')
+
 TAG_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz123456")
 ATTR_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz-")
+UNQUOTED_INVALID_VALUES = frozenset("\"'`=<>")
 UNICODE_ESCAPE = '&#'
 CSS_ESCAPE = re.compile(r'^.*\\[0-9A-Fa-f].*$')
+INVALID_ATTRIBUTE_REPLACEMENTS = {
+   "url": "#"
+}
+UNSAFE_URL_CHARS = {
+   " ": r"%20",
+   "%": r"%25",
+   ">": r"%3E",
+   "<": r"%3C",
+   "[": r"%5B",
+   "]": r"%5D",
+   "{": r"%7B",
+   "}": r"%7D",
+   "|": r"%7C",
+   "\\": r"%5C",
+   "^": r"%5E"
+}
+
 VOID_ELEMENTS = [
    'area',
    'base',
@@ -33,8 +72,17 @@ VOID_ELEMENTS = [
 HTML_ESCAPE_CHARS = {
    '>': '&gt;',
    '<': '&lt;',
-   '"': '&quot;'
+   '&': '&amp;',
+   ';': '&semi;',
 }
+
+HTML_ESCAPE_QUOTES = {
+   '"': '&quot;',
+   '\'': '&apos;',
+}
+
+URL_ENCODING_MATCH = re.compile(r'(\%[0-9a-fA-F]{2})')
+ENTITY_MATCH = re.compile(r'(\&[\#\d\w]+;)')
 
 # predefined HTML colors
 HTML_COLORS = frozenset([
@@ -248,40 +296,48 @@ class HTMLFilter(object):
       self.filtered_html = []
       self.tag_stack = []
 
+      is_script_processed = not self.remove_scripts
+      is_script_escaped = 'script' in self.spec and isinstance(self.spec['script'], str)
+
       text_chars = []
       while self.__next():
          if self.curr_char == '<':
+            # opening tag symbol
 
-            # filtered text
-            filtered_text = self.__filter_text(text_chars)
+            # collect tag text so far
+            if self.state == 'script-data' and not is_script_escaped:
+               # un-modified
+               tag_text = [] + text_chars
+            else:
+               # filtered/escaped
+               tag_text = self.__filter_text(text_chars)
 
-            # start of tag
+            # start of tag (modifies state)
             tag_output = self.__filter_tag()
 
             if self.state == 'script-data-less-than-sign':
                # tag was not filtered, append the consumed text
-               if not self.remove_scripts:
-                  if 'script' in self.spec and isinstance(self.spec['script'], str):
-                     text_chars.append(self.__escape_data('<'))
-                  else:
-                     text_chars.append('<')
-                  text_chars.append(self.__escape_data(self.curr_char))
+               if is_script_processed:
+                  text_chars.append('<')
+                  text_chars.append(self.curr_char)
 
                self.state = 'script-data'
             else:
-               self.filtered_html += filtered_text
+               self.filtered_html += tag_text
+               
                text_chars = []
                self.filtered_html.append(tag_output)
          else:
-            if self.state == 'script-data' and self.remove_scripts:
+            # any other symbol
+            if self.state == 'script-data' and not is_script_processed:
                pass
             elif self.state == 'skip-data':
-               pass
+               pass # skip
             else:
-               # collect text characters and escape them
-               text_chars.append(self.__escape_data(self.curr_char))
+               # collect text characters
+               text_chars.append(self.curr_char)
 
-      # filter and add any leftover text
+      # add any leftover text
       self.filtered_html += self.__filter_text(text_chars)
 
       if len(self.tag_stack) != 0:
@@ -298,9 +354,11 @@ class HTMLFilter(object):
 
       return tag_spec
 
-   def __escape_data(self, char):
+   def __escape_data(self, char, include_quotes=False):
       if char in HTML_ESCAPE_CHARS:
          return HTML_ESCAPE_CHARS[char]
+      elif include_quotes and char in HTML_ESCAPE_QUOTES:
+         return HTML_ESCAPE_QUOTES[char]
       else:
          return char
 
@@ -317,7 +375,8 @@ class HTMLFilter(object):
 
          filtered_html += list(filtered_text)
       else:
-         filtered_html += text_chars
+         filtered_html += list(self.purify_text(''.join(text_chars)))
+
 
       return filtered_html
 
@@ -336,7 +395,7 @@ class HTMLFilter(object):
 
    def __next(self):
       try:
-         return self.chars.next()
+         return next(self.chars)
       except StopIteration:
          self.curr_char = ''
          return ''
@@ -471,7 +530,7 @@ class HTMLFilter(object):
          self.state = 'data'
          self.tag_removing == None
       
-      tag_name, attributes = self.__follow_aliases(tag_name)
+      tag_name, _ = self.__follow_aliases(tag_name)
 
       tag_spec = self.__get_tag_spec(tag_name)
       is_recognised_tag = (tag_spec is not None) and (tag_spec != False)
@@ -484,7 +543,7 @@ class HTMLFilter(object):
             if len(self.tag_stack) == 0:
                raise TagMismatchError('Closing tag </%s> not found %d:%d' % (tag_name, self.line, self.row)) 
 
-            opening_tag_name, attributes = self.tag_stack.pop()
+            opening_tag_name, _ = self.tag_stack.pop()
             if opening_tag_name != tag_name:
                raise TagMismatchError('Opening tag <%s> does not match closing tag </%s> %d:%d' % (opening_tag_name, tag_name, self.line, self.row))
       else:
@@ -498,34 +557,52 @@ class HTMLFilter(object):
       
       attribute_name = self.__extract_attribute_name()
       
-      whitespace = self.__extract_whitespace()
+      self.__extract_whitespace()
 
-      is_allowed = (attribute_name in allowed_attributes) or (attribute_name in self.global_attrs)
+      is_in_spec = (attribute_name in allowed_attributes)
+      is_in_globals = (attribute_name in self.global_attrs)
+      is_wildcard = ('*' in allowed_attributes)
+      is_regex = any(
+         regex.match(attribute_name)
+         for regex in allowed_attributes
+         if isinstance(regex, re._pattern_type)
+      ) or ('^$' in allowed_attributes)
+      
+      is_allowed = is_in_spec or is_in_globals or is_wildcard or is_regex
 
-      assignment = ''
       value = None
       if self.curr_char == '=':
-         assignment = '='
-         
-         self.__next() # nom the =
-
-         self.__extract_whitespace()
-         value = self.__filter_value(tag_name, attribute_name)
+         self.__next() # consume the '='
+         value = self.__filter_value(tag_name, attribute_name, is_regex=is_regex)
          if value is None:
             is_allowed = False
 
       elif self.curr_char not in self.attr_chars and self.curr_char != '>':
+         # if the current character is invalid, but also isn't the closing character
+         # (this includes skipping the '/' in self-closing tags)
          self.__next() # skip invalid characters
          is_allowed = False
 
+      elif tag_spec is not None and tag_spec.get(attribute_name) == "boolean":
+         # No equals sign, so this is a boolean attribute that is present
+         value = True
+      
       if is_allowed:
-         return  '%s=%s' % (attribute_name, value)
-      else:
-         return None
+         if value == True:
+            return '%s' % attribute_name
+         elif value is not None:
+            return  '%s=%s' % (attribute_name, value)
 
+      return None
 
-   def __filter_value(self, tag_name, attribute_name):
+   def __is_valid_unquoted_attribute_character(self, character):
+      return character not in UNQUOTED_INVALID_VALUES and not character.isspace()
+
+   def __filter_value(self, tag_name, attribute_name, is_regex):
       value_chars = []
+
+      num_spaces = len(self.__extract_whitespace())
+
       quote = '"'
       if self.curr_char == "'" or self.curr_char == '"':
          quote = self.curr_char
@@ -533,12 +610,16 @@ class HTMLFilter(object):
          while self.__next() != quote:
             if self.curr_char == '':
                raise HTMLSyntaxError('Attribute quote not closed: <' + tag_name + ' ' + attribute_name + '>')
-               break
 
             value_chars.append(self.curr_char)
 
-         # nom the quote
+         # consume the quote
          self.__next()
+      elif num_spaces == 0 and self.__is_valid_unquoted_attribute_character(self.curr_char):
+         # parse unquoted attributes
+         value_chars.append(self.curr_char)
+         while self.__is_valid_unquoted_attribute_character(self.__next()):
+            value_chars.append(self.curr_char)
 
       value = ''.join(value_chars)
       
@@ -547,8 +628,24 @@ class HTMLFilter(object):
 
       # retrieve element-specific rules for this attribute
       tag_spec = self.__get_tag_spec(tag_name)
-      if tag_spec is not None and attribute_name in tag_spec:
-         rules = tag_spec[attribute_name]
+      if tag_spec is not None:
+         if attribute_name in tag_spec:
+            rules = tag_spec[attribute_name]
+         elif '*' in tag_spec:
+            rules = tag_spec['*']
+         elif '^$' in tag_spec:
+            for pair in tag_spec['^$']:
+               if isinstance(pair, list):
+                  regex, value = pair
+                  if isinstance(regex, re._pattern_type) and regex.match(attribute_name):
+                     rules = value
+                     break
+         elif is_regex:
+            for regex, regex_rules in tag_spec.items():
+               if isinstance(regex, re._pattern_type) and regex.match(attribute_name):
+                  rules = regex_rules
+                  break
+         
 
       # retrieve rules for this attribute global to all elements
       if attribute_name in self.global_attrs:
@@ -567,14 +664,17 @@ class HTMLFilter(object):
       if global_rules is not None and (new_value is None or new_value == ''):
          new_value = self.__purify_attribute(attribute_name, value, global_rules)
 
-      if new_value is None or new_value == '':
+      if new_value is None:
          return None
+      elif new_value == True:
+         # boolean attribute
+         return True
       else:
          return '%s%s%s' % (quote, new_value, quote)
 
    def __purify_attribute(self, attribute_name, value, rules):
       
-      value, purified = self.purify_value(value, rules)
+      value, purified = self.purify_value(value, rules, attribute_name=attribute_name)
 
       if not purified:
          if attribute_name == "class" and isinstance(rules, list):
@@ -596,8 +696,10 @@ class HTMLFilter(object):
                      allowed_values_set.add(new_class_value)
                      allowed_values.append(new_class_value)
 
-
-            value = ' '.join(allowed_values)
+            if len(allowed_values) > 0:
+               value = ' '.join(allowed_values)
+            else:
+               value = None
          elif attribute_name == "style" and isinstance(rules, dict):
             candidate_values = value.split(';')
 
@@ -610,20 +712,28 @@ class HTMLFilter(object):
             if len(allowed_values) > 0:
                value = ';'.join(allowed_values) + ';'
             else:
-               value = ''
+               value = None
          elif value not in rules:
-            value = ''
+            value = None
 
       return value
 
-   def purify_value(self, value, rules):
+   def purify_value(self, value, rules, attribute_name=None):
       purified = True
 
       if UNICODE_ESCAPE in value:
          # disallow &# in values (can be used for encoding disallowed characters)
          value = None
+      elif rules == "*":
+         # leave the value as-is
+         value = value
       elif isinstance(rules, re._pattern_type):
          value = self.purify_regex(value, rules)
+      elif rules == "boolean":
+         if value == "" or (attribute_name is not None and value == attribute_name):
+            value = True
+         else:
+            value = None
       elif rules == "url":
          value = self.purify_url(value)
       elif rules == "color":
@@ -633,17 +743,47 @@ class HTMLFilter(object):
       elif rules == "int":
          value = self.purify_int(value)
       elif rules == "alpha":
-         value = self.purify_set(value, string.ascii_letters)
+         if value == '':
+            value = None
+         else:
+            value = self.purify_set(value, string.ascii_letters)
       elif rules == "alphanumeric":
-         value = self.purify_set(value, string.ascii_letters + string.digits)
+         if value == '':
+            value = None
+         else:
+            value = self.purify_set(value, string.ascii_letters + string.digits)
+      elif rules == "alpha|empty":
+         if value != '':
+            value = self.purify_set(value, string.ascii_letters)
+      elif rules == "alphanumeric|empty":
+         if value != '':
+            value = self.purify_set(value, string.ascii_letters + string.digits)
+      elif rules == "text":
+         value = self.purify_text(value, include_quotes=True)
       elif isinstance(rules, str) and rules.startswith('[') and rules.endswith(']'):
-         value = self.purify_set(value, rules[1:-1])
+         if value == '':
+            value = None
+         else:
+            value = self.purify_set(value, rules[1:-1])
       elif callable(rules):
          value = rules(value)
       else:
          purified = False
 
+      if value is None and rules in INVALID_ATTRIBUTE_REPLACEMENTS:
+         value = INVALID_ATTRIBUTE_REPLACEMENTS[rules]
+
       return value, purified
+
+   def __escape_pattern(self, pattern, value, escaper):
+      entities = set(pattern.findall(value))
+      new_text = []
+      for chunk in pattern.split(value):
+         if chunk not in entities:
+            chunk = ''.join([escaper(char) for char in chunk])
+         new_text.append(chunk)
+
+      return ''.join(new_text)
 
    def purify_style(self, style, rules):
       assert isinstance(rules, dict)
@@ -697,12 +837,14 @@ class HTMLFilter(object):
       return None
 
    def purify_url(self, url):
-      # strip out all encoded tag characters
-      for escape_char in HTML_ESCAPE_CHARS.itervalues():
-         url = url.replace(escape_char, '')
+      # encode unsafe characters
+      def escaper(char):
+         return UNSAFE_URL_CHARS.get(char, char)
+      
+      url = self.__escape_pattern(URL_ENCODING_MATCH, url, escaper)
       
       if '//' not in self.allowed_schemes and url.startswith('//'):
-         return '#' # disallow protocol-relative URLs (possible XSS vector)
+         return None # disallow protocol-relative URLs (possible XSS vector)
 
       parts = url.split(':')
       scheme = ''
@@ -710,31 +852,34 @@ class HTMLFilter(object):
          scheme = parts[0]
          if '/' in scheme or '#' in scheme:
             scheme = ''
-            url = '#'
+            url = None
          else:
             url = ':'.join(parts[1:])
 
       if scheme == '':
-         return url
+         if url == '':
+            return None
+         else:
+            return url
       elif scheme.lower() in self.allowed_schemes:
          return '%s:%s' % (scheme, url)
       else:
-         return '#'
+         return None
 
    def purify_int(self, value):
       try:
          return str(int(value))
       except ValueError:
-         return ''
+         return None
 
    def purify_set(self, value, allowed_chars):
-      if isinstance(value, unicode) or isinstance(allowed_chars, unicode):
+      if p2to3isunicode(value, allowed_chars):
          translation_table = dict.fromkeys(map(ord, allowed_chars), None)
          if value.translate(translation_table):
-            value = ''
+            value = None
       else:
          if value.translate(self.trans_table, allowed_chars):
-            value = ''
+            value = None
 
       return value
    
@@ -742,7 +887,13 @@ class HTMLFilter(object):
       if regex.match(value):
          return value
       else:
-         return ''
+         return None
+
+   def purify_text(self, value, include_quotes=False):
+      def escaper(char):
+         return self.__escape_data(char, include_quotes)
+      
+      return self.__escape_pattern(ENTITY_MATCH, value, escaper)
 
 def filter_html(html, spec, **kwargs):
    html_filter = HTMLFilter(spec, **kwargs)

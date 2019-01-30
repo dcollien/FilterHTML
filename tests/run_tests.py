@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import unittest, re
 
 import FilterHTML
@@ -6,9 +8,97 @@ def print_diff(expected_html, result):
    import difflib
 
    d = difflib.Differ()
-   print ''.join(d.compare(expected_html, result))
+   print(''.join(d.compare(expected_html, result)))
 
 class TestFiltering(unittest.TestCase):
+   def test_escape_data(self):
+      input_html = "-&gt;"
+      expected_html = "-&gt;"
+
+      result = FilterHTML.filter_html(input_html, {})
+
+      self.assertEqual(expected_html, result)
+
+   def test_unquoted_urls(self):
+      spec = {
+         'a': {
+            'href': 'url',
+            'checked': 'boolean'
+         }
+      }
+
+      input_html = "<a href=http://www.example.com></a>"
+      expected_html = "<a href=\"http://www.example.com\"></a>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+      input_html = "<a href= checked></a>"
+      expected_html = "<a href=\"#\" checked></a>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+   def test_boolean_attrs(self):
+      spec = {
+         'input': {
+            'type': 'alpha',
+            'checked': 'boolean'
+         }
+      }
+
+      input_html = "<input type=\"checkbox\" checked>"
+      expected_html = "<input type=\"checkbox\" checked>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+      input_html = "<input type=checkbox checked>"
+      expected_html = "<input type=\"checkbox\" checked>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+   
+      input_html = "<input type= checked>"
+      expected_html = "<input checked>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+   def test_text_attrs(self):
+      spec = {
+         'img': {
+            'src': 'url',
+            'alt': 'alphanumeric|empty'
+         }
+      }
+
+      input_html = "<img src=\"\" alt=\"\">"
+      expected_html = "<img src=\"#\" alt=\"\">"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+      spec = {
+         'img': {
+            'src': 'url',
+            'alt': 'text',
+         }
+      }
+      input_html = "<img src=\"\" alt='\"hello!\" <THIS> & is encoded &quot; &;'>"
+      expected_html = "<img src=\"#\" alt='&quot;hello!&quot; &lt;THIS&gt; &amp; is encoded &quot; &amp;&semi;'>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
    def test_no_attrs(self):
       spec = {
          'b': {},
@@ -383,13 +473,34 @@ class TestFiltering(unittest.TestCase):
       <span>This is a test</span>
       <pre>
          if (x &lt; 4) {
-            x = 1 &lt;&lt; 2;
+            x = 1 &lt;&lt; 2&semi;
          }
       </pre><br>
       """
 
       result = FilterHTML.filter_html(input_html, spec)
       self.assertEqual(expected_html, result)
+
+   def test_script_noeffect(self):
+      spec = {
+         'span': {},
+         'br': {},
+         'pre': {},
+         'script': True
+      }
+
+      input_html = """
+      <span>This is a test</span>
+      <script>
+         if (x < 4) {
+            x = 1 << 2;
+         }
+      </script><br>
+      """
+
+      result = FilterHTML.filter_html(input_html, spec)
+      self.assertEqual(input_html, result)
+
 
    def test_invalid_html(self):
       spec = {
@@ -456,28 +567,28 @@ class TestFiltering(unittest.TestCase):
       expected_html = """
       <a href="#"></a>
       <a href="#"></a>
-      <a></a>
-      <a></a>
       <a href="#"></a>
-      <a></a>
       <a href="#"></a>
-      <a></a>
-      <a></a>
       <a href="#"></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
       <a href="#"></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
-      <a></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
+      <a href="#"></a>
       """
 
       result = FilterHTML.filter_html(input_html, spec)
@@ -568,6 +679,89 @@ class TestFiltering(unittest.TestCase):
 
       result = FilterHTML.filter_html(input_html, spec)
       self.assertEqual(expected_html, result)
+
+   def test_attribute_wildcard(self):
+      spec = {
+         'span': {'*': ['just-an-id', 'true', 'something']},
+         'div': {}
+      }
+
+      input_html = """
+      <span id="just-an-id">This span tag is allowed, its attributes are wildcarded, its attribute values allowed.</span>
+      <span data-anything="true" data-another-attr="something">This span tag is allowed, its attributes are wildcarded, its attribute values allowed.</span>
+      <span data-attr-three="unallowed_value">This span tag is allowed, but its attribute value not</span>
+      <div data-anything="true">This div tag is allowed, but its attribtues stripped</div>
+      """
+
+      expected_html = """
+      <span id="just-an-id">This span tag is allowed, its attributes are wildcarded, its attribute values allowed.</span>
+      <span data-anything="true" data-another-attr="something">This span tag is allowed, its attributes are wildcarded, its attribute values allowed.</span>
+      <span>This span tag is allowed, but its attribute value not</span>
+      <div>This div tag is allowed, but its attribtues stripped</div>
+      """
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+   def test_attribute_value_wildcard(self):
+      spec = {
+         'span': {'id': '*'},
+         'div': {}
+      }
+
+      input_html = """
+      <span id="just-an-id">This span tag is allowed, id-attribute has wildcard.</span>
+      <span id="true">This span tag is allowed, id-attribute has wildcard.</span>
+      <span id="fooBar1234">This span tag is allowed, id-attribute has wildcard.</span>
+      <span width="100px">This span tag is allowed, but its width-attribute stripped</span>
+      <div id="remove-me">This div tag is allowed, but its attribtues stripped</div>
+      """
+
+      expected_html = """
+      <span id="just-an-id">This span tag is allowed, id-attribute has wildcard.</span>
+      <span id="true">This span tag is allowed, id-attribute has wildcard.</span>
+      <span id="fooBar1234">This span tag is allowed, id-attribute has wildcard.</span>
+      <span>This span tag is allowed, but its width-attribute stripped</span>
+      <div>This div tag is allowed, but its attribtues stripped</div>
+      """
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+   def test_regex_attribute_name_delegates(self):
+
+      spec = {
+         'span': {
+            re.compile(r'^data-attr[\w-]+$'): ['true', 'false'],
+            re.compile(r'^data-test[\w-]+$'): ['a', 'b'],
+            'id': ['test']
+         },
+      }
+
+      input_html = """
+      <span data-attr-one="true">Span content</span>
+      <span data-attr-two="true" data-attribute-three="false">Span content</span>
+      <span id="remove-me" data-test-one="a">Span content</span>
+      <span id="test" data-test="remove-me">Span content</span>
+      <span width="100px">Span content</span>
+      <div data-foobar="false">Tag and Attribute allowed</div>
+      """
+
+      expected_html = """
+      <span data-attr-one="true">Span content</span>
+      <span data-attr-two="true" data-attribute-three="false">Span content</span>
+      <span data-test-one="a">Span content</span>
+      <span id="test">Span content</span>
+      <span>Span content</span>
+      Tag and Attribute allowed
+      """
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
 
 if __name__ == '__main__':
     unittest.main()
