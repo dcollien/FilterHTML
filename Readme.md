@@ -2,6 +2,10 @@ FilterHTML
 ---------
 v0.6 - White-list tags, attributes, classes, styles. With tag-specific text filtering and tag contents removal.
 
+
+[Demo (JS)](https://dcollien.github.io/FilterHTML/index.html)
+
+
 A dictionary-defined white-listing HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
 
 - Simple and Powerful
