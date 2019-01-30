@@ -1,6 +1,6 @@
 FilterHTML
 ---------
-v0.5 - White-list tags, attributes, classes, styles. With tag-specific text filtering and tag contents removal.
+v0.6 - White-list tags, attributes, classes, styles. With tag-specific text filtering and tag contents removal.
 
 A dictionary-defined white-listing HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
 
@@ -151,16 +151,31 @@ result = FilterHTML.filter_html(html, spec, text_filter=urlize)
 result = FilterHTML.filter_html(html, spec, text_filter=urlize, remove=['script', 'style'])
 ```
 
-### Built-In Filters:
- - "url", for parsing URLs and matching against allowed schemes (http://, ftp://, mailto:, etc.)
+### Built-In Filters and Whitelist Types:
+At the attribute, class, or style level of the whitelist, the following are valid filters:
+ - "url", for parsing URLs and matching against allowed schemes (http://, ftp://, mailto:, etc.). This also escapes unsafe URL characters (if not already escaped). Invalid URLs attributes will be replaced with "#".
+ - "boolean", for attributes which have no value (are either present, or not, such as the "checked" attribute). N.B. attributes such as: checked="checked" or checked="" will keep the attribute present, all other values will incur the removal of the attribute.
  - "color", for matching an HTML color value (either a string, like "red", "blue", etc. or "#fff", "#f0f0f0", or valid "rgb", "rgba", "hsl", or "hsla" values)
  - "measurement", for matching style measurements, e.g. "42px", "10%", "6em", etc.
  - "int", for matching an integer
  - "alpha", for matching alphabetical characters
  - "alphanumeric", for matching alphabetical and digit characters
+ - "alpha|empty", for matching alphabetical characters, or empty string
+ - "alphanumeric|empty", for matching alphabetical and digit characters, or empty string
+ - "text", for matching against HTML-entity escaped text (e.g. alt attributes). Greater-than, less-than, ampersand, semicolon, and single/double-quote characters will be replaced with their HTML escaped entity equivalents. Existing escape sequences will remain unmodified.
  - "[allowedchars]", for allowing characters specified between starting and ending "[ ]"
+ - regular expressions (which must match the value, or the value will be removed)
+ - a function, which takes the value as an argument, and returns a string replacement (or a None/null value to reject and remove the attribute)
 
- Matching can also be done against regular expressions or a list of allowed values. Values can also be passed through custom filtering functions.
+ Additionally for attributes:
+ - a list of allowed (string) values can be provided to all attributes 
+ - "class" attributes can be treated like a standard attribute, or can be given a list of allowed (string) values which match against any of the provided class names. This may also include a function or regular expression to decide which class names are kept
+ - "style" attributes can be given an object/dictionary with the keys as style names, and any of the above filters as the values.
+
+ At the tag-level:
+ - An object/dictionary defines the allowed attributes (keys are attribute names, values are the above filters)
+ - A false boolean value to remove this tag and its contents
+ - A function, which takes two arguments: the tag name, and the stack of tags above the current tag in the document. This function returns either of the above (object/dictionary, or boolean)
 
 ### White-list
 Define an allowed HTML subset as a JavaScript Object/Python Dictionary.
