@@ -680,5 +680,87 @@ class TestFiltering(unittest.TestCase):
       result = FilterHTML.filter_html(input_html, spec)
       self.assertEqual(expected_html, result)
 
+   def test_attribute_wildcard(self):
+      spec = {
+         'span': {'*': ['just-an-id', 'true', 'something']},
+         'div': {}
+      }
+
+      input_html = """
+      <span id="just-an-id">This span tag is allowed, its attributes are wildcarded, its attribute values allowed.</span>
+      <span data-anything="true" data-another-attr="something">This span tag is allowed, its attributes are wildcarded, its attribute values allowed.</span>
+      <span data-attr-three="unallowed_value">This span tag is allowed, but its attribute value not</span>
+      <div data-anything="true">This div tag is allowed, but its attribtues stripped</div>
+      """
+
+      expected_html = """
+      <span id="just-an-id">This span tag is allowed, its attributes are wildcarded, its attribute values allowed.</span>
+      <span data-anything="true" data-another-attr="something">This span tag is allowed, its attributes are wildcarded, its attribute values allowed.</span>
+      <span>This span tag is allowed, but its attribute value not</span>
+      <div>This div tag is allowed, but its attribtues stripped</div>
+      """
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+   def test_attribute_value_wildcard(self):
+      spec = {
+         'span': {'id': '*'},
+         'div': {}
+      }
+
+      input_html = """
+      <span id="just-an-id">This span tag is allowed, id-attribute has wildcard.</span>
+      <span id="true">This span tag is allowed, id-attribute has wildcard.</span>
+      <span id="fooBar1234">This span tag is allowed, id-attribute has wildcard.</span>
+      <span width="100px">This span tag is allowed, but its width-attribute stripped</span>
+      <div id="remove-me">This div tag is allowed, but its attribtues stripped</div>
+      """
+
+      expected_html = """
+      <span id="just-an-id">This span tag is allowed, id-attribute has wildcard.</span>
+      <span id="true">This span tag is allowed, id-attribute has wildcard.</span>
+      <span id="fooBar1234">This span tag is allowed, id-attribute has wildcard.</span>
+      <span>This span tag is allowed, but its width-attribute stripped</span>
+      <div>This div tag is allowed, but its attribtues stripped</div>
+      """
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+   def test_regex_attribute_name_delegates(self):
+
+      spec = {
+         'span': {
+            re.compile(r'^data-[\w-]+$'): ['true', 'false'],
+            'id': ['test']
+         },
+      }
+
+      input_html = """
+      <span data-attr-one="true">Span content</span>
+      <span data-attr-two="true" data-attribute-three="false">Span content</span>
+      <span id="remove-me" data-test="true">Span content</span>
+      <span id="test" data-test="true">Span content</span>
+      <span width="100px">Span content</span>
+      <div data-foobar="false">Tag and Attribute allowed</div>
+      """
+
+      expected_html = """
+      <span data-attr-one="true">Span content</span>
+      <span data-attr-two="true" data-attribute-three="false">Span content</span>
+      <span data-test="true">Span content</span>
+      <span id="test" data-test="true">Span content</span>
+      <span>Span content</span>
+      Tag and Attribute allowed
+      """
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+
 if __name__ == '__main__':
     unittest.main()
