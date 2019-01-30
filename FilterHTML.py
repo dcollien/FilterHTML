@@ -573,7 +573,7 @@ class HTMLFilter(object):
       value = None
       if self.curr_char == '=':
          self.__next() # consume the '='
-         value = self.__filter_value(tag_name, attribute_name)
+         value = self.__filter_value(tag_name, attribute_name, is_regex=is_regex)
          if value is None:
             is_allowed = False
 
@@ -598,7 +598,7 @@ class HTMLFilter(object):
    def __is_valid_unquoted_attribute_character(self, character):
       return character not in UNQUOTED_INVALID_VALUES and not character.isspace()
 
-   def __filter_value(self, tag_name, attribute_name):
+   def __filter_value(self, tag_name, attribute_name, is_regex):
       value_chars = []
 
       num_spaces = len(self.__extract_whitespace())
@@ -634,16 +634,16 @@ class HTMLFilter(object):
          elif '*' in tag_spec:
             rules = tag_spec['*']
          elif '^$' in tag_spec:
-            for idx, spec in enumerate(tag_spec['^$']):
-               if isinstance(spec, list):
-                  regex, value = spec
+            for pair in tag_spec['^$']:
+               if isinstance(pair, list):
+                  regex, value = pair
                   if isinstance(regex, re._pattern_type) and regex.match(attribute_name):
                      rules = value
                      break
-         else:
-            for idx, regex in enumerate(tag_spec):
+         elif is_regex:
+            for regex, regex_rules in tag_spec.items():
                if isinstance(regex, re._pattern_type) and regex.match(attribute_name):
-                  rules = tag_spec[idx]
+                  rules = regex_rules
                   break
          
 
