@@ -559,7 +559,16 @@ class HTMLFilter(object):
       
       self.__extract_whitespace()
 
-      is_allowed = (attribute_name in allowed_attributes) or (attribute_name in self.global_attrs)
+      is_in_spec = (attribute_name in allowed_attributes)
+      is_in_globals = (attribute_name in self.global_attrs)
+      is_wildcard = ('*' in allowed_attributes)
+      is_regex = any(
+         regex.match(attribute_name)
+         for regex in allowed_attributes
+         if isinstance(regex, re._pattern_type)
+      ) or ('^$' in allowed_attributes)
+      
+      is_allowed = is_in_spec or is_in_globals or is_wildcard or is_regex
 
       value = None
       if self.curr_char == '=':
@@ -575,6 +584,7 @@ class HTMLFilter(object):
          is_allowed = False
 
       elif tag_spec is not None and tag_spec.get(attribute_name) == "boolean":
+         # No equals sign, so this is a boolean attribute that is present
          value = True
       
       if is_allowed:
@@ -618,8 +628,24 @@ class HTMLFilter(object):
 
       # retrieve element-specific rules for this attribute
       tag_spec = self.__get_tag_spec(tag_name)
-      if tag_spec is not None and attribute_name in tag_spec:
-         rules = tag_spec[attribute_name]
+      if tag_spec is not None:
+         if attribute_name in tag_spec:
+            rules = tag_spec[attribute_name]
+         elif '*' in tag_spec:
+            rules = tag_spec['*']
+         elif '^$' in tag_spec:
+            for idx, spec in enumerate(tag_spec['^$']):
+               if isinstance(spec, list):
+                  regex, value = spec
+                  if isinstance(regex, re._pattern_type) and regex.match(attribute_name):
+                     rules = value
+                     break
+         else:
+            for idx, regex in enumerate(tag_spec):
+               if isinstance(regex, re._pattern_type) and regex.match(attribute_name):
+                  rules = tag_spec[idx]
+                  break
+         
 
       # retrieve rules for this attribute global to all elements
       if attribute_name in self.global_attrs:
@@ -698,6 +724,9 @@ class HTMLFilter(object):
       if UNICODE_ESCAPE in value:
          # disallow &# in values (can be used for encoding disallowed characters)
          value = None
+      elif rules == "*":
+         # leave the value as-is
+         value = value
       elif isinstance(rules, re._pattern_type):
          value = self.purify_regex(value, rules)
       elif rules == "boolean":

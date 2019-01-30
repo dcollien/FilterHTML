@@ -163,19 +163,42 @@ At the attribute, class, or style level of the whitelist, the following are vali
  - "alpha|empty", for matching alphabetical characters, or empty string
  - "alphanumeric|empty", for matching alphabetical and digit characters, or empty string
  - "text", for matching against HTML-entity escaped text (e.g. alt attributes). Greater-than, less-than, ampersand, semicolon, and single/double-quote characters will be replaced with their HTML escaped entity equivalents. Existing escape sequences will remain unmodified.
- - "[allowedchars]", for allowing characters specified between starting and ending "[ ]"
+ - `"[allowedchars]"`, for allowing characters specified between starting and ending `[ ]`
  - regular expressions (which must match the value, or the value will be removed)
  - a function, which takes the value as an argument, and returns a string replacement (or a None/null value to reject and remove the attribute)
+ - "*", which matches anything, and will allow any value to remain unchanged
+
 
  Additionally for attributes:
  - a list of allowed (string) values can be provided to all attributes 
  - "class" attributes can be treated like a standard attribute, or can be given a list of allowed (string) values which match against any of the provided class names. This may also include a function or regular expression to decide which class names are kept
  - "style" attributes can be given an object/dictionary with the keys as style names, and any of the above filters as the values.
 
+
  At the tag-level:
  - An object/dictionary defines the allowed attributes (keys are attribute names, values are the above filters)
  - A false boolean value to remove this tag and its contents
  - A function, which takes two arguments: the tag name, and the stack of tags above the current tag in the document. This function returns either of the above (object/dictionary, or boolean)
+
+ #### Special Attribute Values
+ The following can be used instead of attribute names:
+  - "*" to allow these rules on all attributes which have not otherwise been specified
+  - A regular expression object (Python only), to use this rule-set for matching attributes which have not otherwise been specified
+  - "^$" to define a list of `[RegEx, rule]` pairs, to be used instead of the above, when a regular expression cannot be given as a key (i.e. JavaScript), or the regular expressions need to be evaluated in a specific order
+
+e.g.
+
+```javascript
+{
+  "tag_name": {
+    "attribute_name": attribute_rules,
+    "^$": [
+      [/^regex$/, matching_attribute_rules]
+    ],
+    "*": remaining_attribute_rules
+  }
+}
+```
 
 ### White-list
 Define an allowed HTML subset as a JavaScript Object/Python Dictionary.
