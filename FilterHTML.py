@@ -735,7 +735,12 @@ class HTMLFilter(object):
          else:
             value = None
       elif rules == "url":
+         value = value.strip()
          value = self.purify_url(value)
+      elif rules == "url|empty":
+         value = value.strip()
+         if value != '':
+            value = self.purify_url(value)
       elif rules == "color":
          value = self.purify_color(value)
       elif rules == "measurement":

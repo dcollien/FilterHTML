@@ -41,6 +41,21 @@ class TestFiltering(unittest.TestCase):
 
       self.assertEqual(expected_html, result)
 
+   def test_empty_urls(self):
+      spec = {
+         'a': {
+            'href': 'url|empty'
+         }
+      }
+
+      input_html = "<a href=\"   \"></a>"
+      expected_html = "<a href=\"\"></a>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+
    def test_boolean_attrs(self):
       spec = {
          'input': {
