@@ -29,7 +29,8 @@ UNQUOTED_INVALID_VALUES = frozenset("\"'`=<>")
 UNICODE_ESCAPE = '&#'
 CSS_ESCAPE = re.compile(r'^.*\\[0-9A-Fa-f].*$')
 INVALID_ATTRIBUTE_REPLACEMENTS = {
-   "url": "#"
+   "url": "#",
+   "url|empty": ""
 }
 UNSAFE_URL_CHARS = {
    " ": r"%20",

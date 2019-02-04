@@ -55,6 +55,19 @@ class TestFiltering(unittest.TestCase):
 
       self.assertEqual(expected_html, result)
 
+      input_html = "<a href=\"\"></a>"
+      expected_html = "<a href=\"\"></a>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
+
+      input_html = "<a href=\"javascript://invalid\"></a>"
+      expected_html = "<a href=\"\"></a>"
+
+      result = FilterHTML.filter_html(input_html, spec)
+
+      self.assertEqual(expected_html, result)
 
    def test_boolean_attrs(self):
       spec = {

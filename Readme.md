@@ -157,8 +157,8 @@ result = FilterHTML.filter_html(html, spec, text_filter=urlize, remove=['script'
 
 ### Built-In Filters and Whitelist Types:
 At the attribute, class, or style level of the whitelist, the following are valid filters:
- - "url", for parsing URLs and matching against allowed schemes (http://, ftp://, mailto:, etc.). This also escapes unsafe URL characters (if not already escaped). Invalid URLs attributes will be replaced with "#". Leading and trailing spaces will be stripped.
- - "url|empty", same as above, but also allows empty-string attributes
+ - "url", for parsing URLs and matching against allowed schemes (http://, ftp://, mailto:, etc.). This also escapes unsafe URL characters (if not already escaped). Invalid URL attributes will be replaced with "#". Leading and trailing spaces will be stripped.
+ - "url|empty", same as above, but also allows empty-string attributes. Invalid URL attributes will be replaced with "" (empty string).
  - "boolean", for attributes which have no value (are either present, or not, such as the "checked" attribute). N.B. attributes such as: checked="checked" or checked="" will keep the attribute present, all other values will incur the removal of the attribute.
  - "color", for matching an HTML color value (either a string, like "red", "blue", etc. or "#fff", "#f0f0f0", or valid "rgb", "rgba", "hsl", or "hsla" values)
  - "measurement", for matching style measurements, e.g. "42px", "10%", "6em", etc.
