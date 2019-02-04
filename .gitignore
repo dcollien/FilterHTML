@@ -19,3 +19,4 @@ npm-debug.log
 .coverage
 .vscode/launch.json
 .vscode/settings.json
+.venv
