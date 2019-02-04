@@ -14,7 +14,7 @@ A dictionary-defined white-listing HTML filter. Useful for filtering HTML to lea
  - [FilterHTML.py](./FilterHTML.py)
  - [FilterHTML.js](./lib/FilterHTML.js)
 
-Python installation:
+Python (2.7 or 3+) installation:
     
     pip install FilterHTML
 
