@@ -1,5 +1,6 @@
 import re
 import string
+from html.parser import HTMLParser
 
 def p2to3isunicode(s, t):
    """ Helper for python 2/3 to detect unicode string """
@@ -25,10 +26,7 @@ PATTERN_TYPE = getattr(re, '_pattern_type', getattr(re, 'Pattern', None))
 
 TRANS_TABLE = p2to3maketrans('','')
 
-TAG_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz123456")
-ATTR_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz-")
-UNQUOTED_INVALID_VALUES = frozenset("\"'`=<>")
-UNICODE_ESCAPE = '&#'
+ATTR_NAME_MATCH = re.compile(r'^[a-z\-]+$')
 CSS_ESCAPE = re.compile(r'^.*\\[0-9A-Fa-f].*$')
 INVALID_ATTRIBUTE_REPLACEMENTS = {
    "url": "#",
@@ -82,6 +80,20 @@ HTML_ESCAPE_CHARS = {
 HTML_ESCAPE_QUOTES = {
    '"': '&quot;',
    '\'': '&apos;',
+}
+
+ATTRIBUTE_ESCAPE_CHARS = {
+   '>': '&gt;',
+   '<': '&lt;',
+   '&': '&amp;',
+   '"': '&quot;',
+   '\'': '&apos;',
+}
+
+TEXT_FILTER_ESCAPE_CHARS = {
+   '>': '&gt;',
+   '<': '&lt;',
+   '&': '&amp;',
 }
 
 URL_ENCODING_MATCH = re.compile(r'(\%[0-9a-fA-F]{2})')
@@ -244,26 +256,58 @@ HSLA_MATCH = re.compile(r'^hsla\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*,\s*(\d+\.)?\d+\
 
 MEASUREMENT_MATCH = re.compile(r'^(-?\d+(px|cm|pt|em|ex|pc|mm|in)?|\d+%)$')
 
-# states for navigating script tags (tag body contains "<" signs)
-"""
-   data
-   skip-data
-   script-data
-   script-data-less-than-sign
-"""
-
+# Kept so existing except clauses still work; bad nesting is now repaired instead of raised.
 class TagMismatchError(Exception):
    pass
 
 class HTMLSyntaxError(Exception):
    pass
 
+class _Element(object):
+   def __init__(self, name, attrs):
+      self.name = name
+      self.attrs = attrs
+      self.children = []
+
+class _TreeBuilder(HTMLParser):
+   """ Builds a tree of _Element and text nodes, repairing bad nesting """
+   def __init__(self):
+      HTMLParser.__init__(self, convert_charrefs=True)
+      self.root = _Element(None, [])
+      self.open_elements = [self.root]
+
+   def handle_starttag(self, tag, attrs):
+      element = _Element(tag, attrs)
+      self.open_elements[-1].children.append(element)
+      if tag not in VOID_ELEMENTS:
+         self.open_elements.append(element)
+
+   def handle_startendtag(self, tag, attrs):
+      # like browsers, ignore "/>" on non-void elements
+      self.handle_starttag(tag, attrs)
+
+   def handle_endtag(self, tag):
+      # close the nearest matching open element; ignore stray closing tags
+      for i in range(len(self.open_elements) - 1, 0, -1):
+         if self.open_elements[i].name == tag:
+            del self.open_elements[i:]
+            return
+
+   def handle_data(self, data):
+      self.open_elements[-1].children.append(data)
+
+def _parse(html):
+   builder = _TreeBuilder()
+   builder.feed(html)
+   builder.close()
+   return builder.root.children
+
+def _escape(value, table):
+   return ''.join(table.get(char, char) for char in value)
+
 class HTMLFilter(object):
    def __init__(self, spec, allowed_schemes=('http', 'https', 'mailto', 'ftp'), text_filter=None, remove=None):
-      self.tag_chars = TAG_CHARS
-      self.attr_chars = ATTR_CHARS
       self.trans_table = TRANS_TABLE
-      self.tag_removing = None
       self.removals = remove
 
       if self.removals is None:
@@ -274,86 +318,75 @@ class HTMLFilter(object):
          if 'style' not in spec:
             self.removals.append('style')
 
-      self.remove_scripts = ('script' in self.removals)
-
       self.allowed_schemes = allowed_schemes
 
       self.text_filter = text_filter
-
-      self.html = ''
-      self.filtered_html = []
-      self.state = 'data'
 
       # allow global attributes
       if '*' in spec:
          self.global_attrs = spec['*']
       else:
-         self.global_attrs = []
+         self.global_attrs = {}
 
       self.spec = spec
 
-
    def filter(self, html):
-      self.html = html
-      self.chars = self.__char_gen()
-      self.filtered_html = []
-      self.tag_stack = []
+      return self.__filter_nodes(_parse(html), [], self.text_filter)
 
-      is_script_processed = not self.remove_scripts
-      is_script_escaped = 'script' in self.spec and isinstance(self.spec['script'], str)
+   def __filter_nodes(self, nodes, tag_stack, text_filter):
+      output = []
 
-      text_chars = []
-      while self.__next():
-         if self.curr_char == '<':
-            # opening tag symbol
+      for node in nodes:
+         if isinstance(node, _Element):
+            output.append(self.__filter_element(node, tag_stack, text_filter))
+         elif text_filter is not None:
+            filtered_text = text_filter(_escape(node, TEXT_FILTER_ESCAPE_CHARS), tag_stack)
 
-            # collect tag text so far
-            if self.state == 'script-data' and not is_script_escaped:
-               # un-modified
-               tag_text = [] + text_chars
-            else:
-               # filtered/escaped
-               tag_text = self.__filter_text(text_chars)
-
-            # start of tag (modifies state)
-            tag_output = self.__filter_tag()
-
-            if self.state == 'script-data-less-than-sign':
-               # tag was not filtered, append the consumed text
-               if is_script_processed:
-                  text_chars.append('<')
-                  text_chars.append(self.curr_char)
-
-               self.state = 'script-data'
-            else:
-               self.filtered_html += tag_text
-               
-               text_chars = []
-               self.filtered_html.append(tag_output)
+            # the text filter returns HTML, which must also adhere to the spec
+            output.append(self.__filter_nodes(_parse(filtered_text), tag_stack, None))
          else:
-            # any other symbol
-            if self.state == 'script-data' and not is_script_processed:
-               pass
-            elif self.state == 'skip-data':
-               pass # skip
-            else:
-               # collect text characters
-               text_chars.append(self.curr_char)
+            output.append(_escape(node, HTML_ESCAPE_CHARS))
 
-      # add any leftover text
-      self.filtered_html += self.__filter_text(text_chars)
+      return ''.join(output)
 
-      if len(self.tag_stack) != 0:
-         error = 'Tags not closed: %s' % ', '.join(tag for tag, _ in self.tag_stack)
-         raise TagMismatchError(error)
+   def __filter_element(self, element, tag_stack, text_filter):
+      if element.name in self.removals:
+         return ''
 
-      return ''.join(self.filtered_html)
+      tag_spec = self.__get_tag_spec(element.name, tag_stack)
 
-   def __get_tag_spec(self, tag_name):
+      if tag_spec is None:
+         # remove the tag, keep its contents
+         return self.__filter_nodes(element.children, tag_stack, text_filter)
+
+      if tag_spec == False:
+         # remove the tag and its contents
+         return ''
+
+      tag_name, attributes = self.__follow_aliases(element.name)
+      attributes += self.__filter_attributes(tag_name, element.attrs, tag_stack)
+
+      tag_output = '<' + tag_name
+      if len(attributes) > 0:
+         tag_output += ' ' + ' '.join(attributes)
+      tag_output += '>'
+
+      if tag_name in VOID_ELEMENTS:
+         return tag_output
+
+      if element.name == 'script' and tag_name == 'script':
+         # the spec explicitly allows scripts, so their contents pass through unchanged
+         contents = ''.join(child for child in element.children if not isinstance(child, _Element))
+      else:
+         contents = self.__filter_nodes(element.children, tag_stack + [(tag_name, attributes)], text_filter)
+
+      return '%s%s</%s>' % (tag_output, contents, tag_name)
+
+   def __get_tag_spec(self, tag_name, tag_stack):
       tag_spec = self.spec.get(tag_name, None)
 
       if callable(tag_spec):
-         tag_spec = tag_spec(tag_name, self.tag_stack)
+         tag_spec = tag_spec(tag_name, tag_stack)
 
       return tag_spec
 
@@ -365,108 +398,6 @@ class HTMLFilter(object):
       else:
          return char
 
-   def __filter_text(self, text_chars):
-      filtered_html = []
-
-      # filter collected text
-      # and save it into filtered_html
-      if self.text_filter is not None:
-         filtered_text = self.text_filter(''.join(text_chars), self.tag_stack)
-
-         # ensure filtered text adheres to the html spec
-         filtered_text = filter_html(filtered_text, self.spec, allowed_schemes=self.allowed_schemes, remove=self.removals)
-
-         filtered_html += list(filtered_text)
-      else:
-         filtered_html += list(self.purify_text(''.join(text_chars)))
-
-
-      return filtered_html
-
-   def __char_gen(self):
-      self.curr_char = ''
-      self.row = 0
-      self.line = 0
-      for c in self.html:
-         self.curr_char = c
-         yield c
-
-         self.row += 1
-         if c == '\n':
-            self.line += 1
-            self.row = 0
-
-   def __next(self):
-      try:
-         return next(self.chars)
-      except StopIteration:
-         self.curr_char = ''
-         return ''
-
-   def __filter_tag(self):
-      tag_output = ''
-
-      assert self.curr_char == '<'
-
-      self.__next()
-      if self.curr_char == '/':
-         self.__next()
-         # </closing tag>, curr_char is first character of tag name
-         tag_output = self.__filter_closing_tag()
-      elif self.curr_char == '!' and self.state != 'script-data':
-         # <!-- comment tag -->
-         self.__extract_remaining_tag()
-      else:
-         # <opening tag>, curr_char is first character of tag name
-         if self.state == 'script-data':
-            self.state = 'script-data-less-than-sign'
-         else:
-            tag_output = self.__filter_opening_tag()
-
-      assert (self.state == 'script-data-less-than-sign' or self.curr_char == '>' or self.curr_char == '')
-
-      return tag_output
-
-   def __extract_whitespace(self):
-      whitespace = []
-
-      if self.curr_char.isspace():
-         whitespace.append(self.curr_char)
-         while self.__next().isspace():
-            whitespace.append(self.curr_char)
-
-      return ''.join(whitespace)
-
-   def __extract_tag_name(self):
-      tag_name = []
-
-      if self.curr_char.lower() in self.tag_chars:
-         tag_name.append(self.curr_char.lower())
-         while self.__next().lower() in self.tag_chars:
-            tag_name.append(self.curr_char.lower())
-
-      return ''.join(tag_name)
-
-   def __extract_attribute_name(self):
-      attr_name = []
-
-      if self.curr_char.lower() in self.attr_chars:
-         attr_name.append(self.curr_char.lower())
-         while self.__next().lower() in self.attr_chars:
-            attr_name.append(self.curr_char.lower())
-
-      return ''.join(attr_name)
-
-   def __extract_remaining_tag(self):
-      remaining_tag = []
-
-      if self.curr_char != '>':
-         remaining_tag.append(self.curr_char)
-         while self.__next() != '>' and self.curr_char != '':
-            remaining_tag.append(self.curr_char)
-
-      return ''.join(remaining_tag)
-
    def __follow_aliases(self, tag_name):
       alias_attributes = []
       while tag_name in self.spec and isinstance(self.spec[tag_name], str):
@@ -477,183 +408,58 @@ class HTMLFilter(object):
 
       return tag_name, alias_attributes
 
-   def __filter_opening_tag(self):
-      tag_output = []
+   def __filter_attributes(self, tag_name, attrs, tag_stack):
+      tag_spec = self.__get_tag_spec(tag_name, tag_stack)
+      if not isinstance(tag_spec, dict):
+         tag_spec = {}
 
-      self.__extract_whitespace()
+      attributes = []
+      seen = set()
 
-      tag_name = self.__extract_tag_name()
-      tag_spec = self.__get_tag_spec(tag_name)
+      for attribute_name, value in attrs:
+         # browsers keep the first of any repeated attribute
+         if attribute_name in seen or not ATTR_NAME_MATCH.match(attribute_name):
+            continue
+         seen.add(attribute_name)
 
-      if tag_name == 'script':
-         self.state = 'script-data'
-      elif tag_spec == False:
-         self.tag_removing = tag_name
-         self.state = 'skip-data'
-      elif tag_name in self.removals:
-         self.tag_removing = tag_name
-         self.state = 'skip-data'
-
-      tag_name, attributes = self.__follow_aliases(tag_name)
-      
-      is_recognised_tag = tag_spec is not None and tag_spec != False      
-
-      if is_recognised_tag:
-         while self.curr_char != '>' and self.curr_char != '':
-            self.__extract_whitespace()
-            attribute = self.__filter_attribute(tag_name)
-            if attribute is not None:
-               attributes.append(attribute)
-
-         tag_output = ['<%s' % (tag_name,)]
-
-         if len(attributes) > 0:
-            tag_output.append(' ' + ' '.join(attributes))
-
-         tag_output.append('>')
-
-         if tag_name not in VOID_ELEMENTS:
-            self.tag_stack.append((tag_name, attributes))
-
-      else:
-         self.__extract_remaining_tag()
-
-      return ''.join(tag_output)
-
-   def __filter_closing_tag(self):
-      tag_output = ''
-
-      self.__extract_whitespace()
-
-      tag_name = self.__extract_tag_name()
-
-      if tag_name == 'script' and self.state == 'script-data':
-         self.state = 'data'
-      elif tag_name == self.tag_removing and self.state == 'skip-data':
-         self.state = 'data'
-         self.tag_removing == None
-      
-      tag_name, _ = self.__follow_aliases(tag_name)
-
-      tag_spec = self.__get_tag_spec(tag_name)
-      is_recognised_tag = (tag_spec is not None) and (tag_spec != False)
-
-      if is_recognised_tag and tag_name not in VOID_ELEMENTS:
-         self.__extract_whitespace()
-         if self.curr_char == '>':
-            tag_output = '</%s>' % (tag_name,)
-
-            if len(self.tag_stack) == 0:
-               raise TagMismatchError('Closing tag </%s> not found %d:%d' % (tag_name, self.line, self.row)) 
-
-            opening_tag_name, _ = self.tag_stack.pop()
-            if opening_tag_name != tag_name:
-               raise TagMismatchError('Opening tag <%s> does not match closing tag </%s> %d:%d' % (opening_tag_name, tag_name, self.line, self.row))
-      else:
-         self.__extract_remaining_tag()
-
-      return tag_output
-
-   def __filter_attribute(self, tag_name):
-      tag_spec = self.__get_tag_spec(tag_name)
-      allowed_attributes = tag_spec.keys()
-      
-      attribute_name = self.__extract_attribute_name()
-      
-      self.__extract_whitespace()
-
-      is_in_spec = (attribute_name in allowed_attributes)
-      is_in_globals = (attribute_name in self.global_attrs)
-      is_wildcard = ('*' in allowed_attributes)
-      is_regex = any(
-         regex.match(attribute_name)
-         for regex in allowed_attributes
-         if isinstance(regex, PATTERN_TYPE)
-      ) or ('^$' in allowed_attributes)
-      
-      is_allowed = is_in_spec or is_in_globals or is_wildcard or is_regex
-
-      value = None
-      if self.curr_char == '=':
-         self.__next() # consume the '='
-         value = self.__filter_value(tag_name, attribute_name, is_regex=is_regex)
+         # a value-less attribute (e.g. "checked") has the empty string as its value
          if value is None:
-            is_allowed = False
+            value = ''
 
-      elif self.curr_char not in self.attr_chars and self.curr_char != '>':
-         # if the current character is invalid, but also isn't the closing character
-         # (this includes skipping the '/' in self-closing tags)
-         self.__next() # skip invalid characters
-         is_allowed = False
+         new_value = self.__filter_value(tag_spec, attribute_name, value)
+         if new_value is True:
+            attributes.append(attribute_name)
+         elif new_value is not None:
+            attributes.append('%s="%s"' % (attribute_name, _escape(new_value, ATTRIBUTE_ESCAPE_CHARS)))
 
-      elif tag_spec is not None and tag_spec.get(attribute_name) == "boolean":
-         # No equals sign, so this is a boolean attribute that is present
-         value = True
-      
-      if is_allowed:
-         if value == True:
-            return '%s' % attribute_name
-         elif value is not None:
-            return  '%s=%s' % (attribute_name, value)
+      return attributes
 
-      return None
-
-   def __is_valid_unquoted_attribute_character(self, character):
-      return character not in UNQUOTED_INVALID_VALUES and not character.isspace()
-
-   def __filter_value(self, tag_name, attribute_name, is_regex):
-      value_chars = []
-
-      num_spaces = len(self.__extract_whitespace())
-
-      quote = '"'
-      if self.curr_char == "'" or self.curr_char == '"':
-         quote = self.curr_char
-
-         while self.__next() != quote:
-            if self.curr_char == '':
-               raise HTMLSyntaxError('Attribute quote not closed: <' + tag_name + ' ' + attribute_name + '>')
-
-            value_chars.append(self.curr_char)
-
-         # consume the quote
-         self.__next()
-      elif num_spaces == 0 and self.__is_valid_unquoted_attribute_character(self.curr_char):
-         # parse unquoted attributes
-         value_chars.append(self.curr_char)
-         while self.__is_valid_unquoted_attribute_character(self.__next()):
-            value_chars.append(self.curr_char)
-
-      value = ''.join(value_chars)
-      
+   def __filter_value(self, tag_spec, attribute_name, value):
       rules = None
       global_rules = None
 
       # retrieve element-specific rules for this attribute
-      tag_spec = self.__get_tag_spec(tag_name)
-      if tag_spec is not None:
-         if attribute_name in tag_spec:
-            rules = tag_spec[attribute_name]
-         elif '*' in tag_spec:
-            rules = tag_spec['*']
-         elif '^$' in tag_spec:
-            for pair in tag_spec['^$']:
-               if isinstance(pair, list):
-                  regex, value = pair
-                  if isinstance(regex, PATTERN_TYPE) and regex.match(attribute_name):
-                     rules = value
-                     break
-         elif is_regex:
-            for regex, regex_rules in tag_spec.items():
+      if attribute_name in tag_spec:
+         rules = tag_spec[attribute_name]
+      elif '*' in tag_spec:
+         rules = tag_spec['*']
+      elif '^$' in tag_spec:
+         for pair in tag_spec['^$']:
+            if isinstance(pair, list):
+               regex, pair_rules = pair
                if isinstance(regex, PATTERN_TYPE) and regex.match(attribute_name):
-                  rules = regex_rules
+                  rules = pair_rules
                   break
-         
+      else:
+         for regex, regex_rules in tag_spec.items():
+            if isinstance(regex, PATTERN_TYPE) and regex.match(attribute_name):
+               rules = regex_rules
+               break
 
       # retrieve rules for this attribute global to all elements
       if attribute_name in self.global_attrs:
          global_rules = self.global_attrs[attribute_name]
-      
+
       # at least some rules must exist to continue
       if rules is None and global_rules is None:
          return None
@@ -667,13 +473,10 @@ class HTMLFilter(object):
       if global_rules is not None and (new_value is None or new_value == ''):
          new_value = self.__purify_attribute(attribute_name, value, global_rules)
 
-      if new_value is None:
-         return None
-      elif new_value == True:
-         # boolean attribute
-         return True
+      if new_value is None or new_value is True:
+         return new_value
       else:
-         return '%s%s%s' % (quote, new_value, quote)
+         return str(new_value)
 
    def __purify_attribute(self, attribute_name, value, rules):
       
@@ -724,10 +527,7 @@ class HTMLFilter(object):
    def purify_value(self, value, rules, attribute_name=None):
       purified = True
 
-      if UNICODE_ESCAPE in value:
-         # disallow &# in values (can be used for encoding disallowed characters)
-         value = None
-      elif rules == "*":
+      if rules == "*":
          # leave the value as-is
          value = value
       elif isinstance(rules, PATTERN_TYPE):
@@ -767,7 +567,8 @@ class HTMLFilter(object):
          if value != '':
             value = self.purify_set(value, string.ascii_letters + string.digits)
       elif rules == "text":
-         value = self.purify_text(value, include_quotes=True)
+         # any text is allowed; it is HTML-encoded on output
+         value = value
       elif isinstance(rules, str) and rules.startswith('[') and rules.endswith(']'):
          if value == '':
             value = None
@@ -778,7 +579,7 @@ class HTMLFilter(object):
       else:
          purified = False
 
-      if value is None and rules in INVALID_ATTRIBUTE_REPLACEMENTS:
+      if value is None and isinstance(rules, str) and rules in INVALID_ATTRIBUTE_REPLACEMENTS:
          value = INVALID_ATTRIBUTE_REPLACEMENTS[rules]
 
       return value, purified
@@ -906,5 +707,4 @@ class HTMLFilter(object):
 def filter_html(html, spec, **kwargs):
    html_filter = HTMLFilter(spec, **kwargs)
    return html_filter.filter(html)
-
 

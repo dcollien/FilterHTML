@@ -1,6 +1,6 @@
 FilterHTML
 ---------
-v0.6 - White-list tags, attributes, classes, styles. With tag-specific text filtering and tag contents removal.
+v0.7 - White-list tags, attributes, classes, styles. With tag-specific text filtering and tag contents removal.
 
 
 [Demo (JS)](https://dcollien.github.io/FilterHTML/index.html)
@@ -9,12 +9,15 @@ v0.6 - White-list tags, attributes, classes, styles. With tag-specific text filt
 A dictionary-defined white-listing HTML filter. Useful for filtering HTML to leave behind a supported or safe sub-set.
 
 - Simple and Powerful
-- No dependencies
+- Uses a real HTML parser, so it reads HTML the way browsers do:
+ - Python: the built-in `html.parser` (no dependencies)
+ - Node.js: [parse5](https://github.com/inikulin/parse5)
+ - Browser: the browser's own parser (no dependencies)
 - Python and JavaScript versions, each a **single file**:
  - [FilterHTML.py](./FilterHTML.py)
  - [FilterHTML.js](./lib/FilterHTML.js)
 
-Python (2.7 or 3+) installation:
+Python (3.4+) installation:
     
     pip install FilterHTML
 
@@ -24,7 +27,7 @@ Node.js installation:
 
 Browser: use `./lib/FilterHTML.js` in a &lt;script&gt; tag
 
-Run Python Tests: `nosetests --with-coverage`
+Run Python Tests: `python3 -m unittest tests.run_tests`
 
 Run JavaScript Tests: `nodeunit tests/run_tests.js`
 
@@ -77,7 +80,7 @@ filtered_html = FilterHTML.filter_html(unfiltered_html, whitelist)
 
 What this does:
  - Lets you **easily define a subset of HTML** and it filters out everything else
- - Ensures there's **no unicode** encoding in attributes (e.g. &amp;#58; or \3A for CSS)
+ - **Decodes HTML entities** in attributes before checking them (e.g. &amp;#58; or &amp;colon;), re-encodes all output, and blocks CSS escapes (e.g. \3A)
  - Lets you use **regular expressions, lists, function delegates or built-ins** as rules/filters
  - Lets you filter or match **attributes** on tags
  - Lets you filter or match individual **CSS styles** in style attributes
@@ -90,7 +93,7 @@ What this does:
  - Really helps to reduce XSS/code injection vulnerabilities
 
 What this doesn't do:
- - Clean up tag soup (use something else for that, like BeautifulSoup): this assumes the HTML is valid and complete. It will throw exceptions if it detects unclosed opening tags, or extra closing tags.
+ - Clean up tag soup beyond basic repairs: unclosed tags are closed, and stray closing tags are dropped (`TagMismatchError` and `HTMLSyntaxError` still exist, but are no longer raised).
  - Claim to be XSS-safe out of the box: be careful with your white-list specification and test it thoroughly (here's a handy resource: https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet).
 
 ### Class and Style filtering
@@ -167,7 +170,7 @@ At the attribute, class, or style level of the whitelist, the following are vali
  - "alphanumeric", for matching alphabetical and digit characters
  - "alpha|empty", for matching alphabetical characters, or empty string
  - "alphanumeric|empty", for matching alphabetical and digit characters, or empty string
- - "text", for matching against HTML-entity escaped text (e.g. alt attributes). Greater-than, less-than, ampersand, semicolon, and single/double-quote characters will be replaced with their HTML escaped entity equivalents. Existing escape sequences will remain unmodified.
+ - "text", for allowing any text (e.g. alt attributes). Like all attribute values, it is HTML-encoded on output.
  - `"[allowedchars]"`, for allowing characters specified between starting and ending `[ ]`
  - regular expressions (which must match the value, or the value will be removed)
  - a function, which takes the value as an argument, and returns a string replacement (or a None/null value to reject and remove the attribute)

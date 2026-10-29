@@ -380,7 +380,7 @@ module.exports.test_tag_removal = function(test) {
       '<br>'
    ;
 
-   result = FilterHTML.filter_html(input_html, spec, remove=['script', 'style', 'div']);
+   result = FilterHTML.filter_html(input_html, spec, null, null, ['script', 'style', 'div']);
    test.equal(expected_html, result, result);
    test.done();
 };
@@ -408,13 +408,51 @@ module.exports.test_script_conversion = function(test) {
       '<span>This is a test</span>' +
       '<pre>' +
       '   if (x &lt; 4) {' +
-      '      x = 1 &lt;&lt; 2;' +
+      '      x = 1 &lt;&lt; 2&semi;' +
       '   }' +
       '</pre><br>'
    ;
 
    result = FilterHTML.filter_html(input_html, spec);
    test.equal(expected_html, result);
+   test.done();
+};
+
+module.exports.test_entity_encoded_urls = function(test) {
+   var spec = {'a': {'href': 'url'}};
+
+   test.equal('<a href="#"></a>', FilterHTML.filter_html('<a href="javascript&colon;alert&lpar;1&rpar;"></a>', spec));
+   test.equal('<a href="#"></a>', FilterHTML.filter_html('<a href="java&Tab;script&colon;alert(1)"></a>', spec));
+   test.done();
+};
+
+module.exports.test_script_contents_never_raw = function(test) {
+   var payload = '<script><img src=x onerror=alert(1)></script>';
+
+   test.equal('', FilterHTML.filter_html(payload, {'script': false, 'img': {}}));
+   test.equal('&lt;img src=x onerror=alert(1)&gt;', FilterHTML.filter_html(payload, {'img': {}}, null, null, ['style']));
+   test.done();
+};
+
+module.exports.test_boolean_and_text_attrs = function(test) {
+   test.equal('<input checked>', FilterHTML.filter_html('<input checked>', {'input': {'checked': 'boolean'}}));
+   test.equal('<img alt="&quot;a&quot; &apos;b&apos; &lt;c&gt;">', FilterHTML.filter_html('<img alt=\'"a" &apos;b&apos; <c>\'>', {'img': {'alt': 'text'}}));
+   test.done();
+};
+
+module.exports.test_prototype_names = function(test) {
+   test.equal('y', FilterHTML.filter_html('<constructor link="x">y</constructor>', {}));
+   test.equal('<b>y</b>', FilterHTML.filter_html('<b constructor="x">y</b>', {'b': {}}));
+   test.done();
+};
+
+module.exports.test_removed_tag_contents = function(test) {
+   test.equal('', FilterHTML.filter_html('<iframe><b>hi</b>secret</iframe>', {'iframe': false, 'b': {}}));
+   test.done();
+};
+
+module.exports.test_lone_less_than = function(test) {
+   test.equal('1 &lt; 2 and 3 &gt; 2', FilterHTML.filter_html('1 < 2 and 3 > 2', {}));
    test.done();
 };
 

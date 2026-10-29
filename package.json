@@ -2,11 +2,14 @@
   "author": "David Collien",
   "name": "filterhtml",
   "description": "FilterHTML: A whitelisting HTML filter for Python and JavaScript",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "repository": {
     "url": "https://github.com/dcollien/FilterHTML"
   },
   "main": "./lib/FilterHTML",
+  "browser": {
+    "parse5": false
+  },
   "keywords": [
     "html",
     "clean",
@@ -24,7 +27,9 @@
     "tags",
     "attributes"
   ],
-  "dependencies": {},
+  "dependencies": {
+    "parse5": "^7.3.0"
+  },
   "engines": {
     "node": "*"
   }

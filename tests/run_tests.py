@@ -34,8 +34,9 @@ class TestFiltering(unittest.TestCase):
 
       self.assertEqual(expected_html, result)
 
+      # browsers read "href= checked" as href="checked"
       input_html = "<a href= checked></a>"
-      expected_html = "<a href=\"#\" checked></a>"
+      expected_html = "<a href=\"checked\"></a>"
 
       result = FilterHTML.filter_html(input_html, spec)
 
@@ -92,8 +93,9 @@ class TestFiltering(unittest.TestCase):
       self.assertEqual(expected_html, result)
 
    
+      # browsers read "type= checked" as type="checked"
       input_html = "<input type= checked>"
-      expected_html = "<input checked>"
+      expected_html = "<input type=\"checked\">"
 
       result = FilterHTML.filter_html(input_html, spec)
 
@@ -121,7 +123,7 @@ class TestFiltering(unittest.TestCase):
          }
       }
       input_html = "<img src=\"\" alt='\"hello!\" <THIS> & is encoded &quot; &;'>"
-      expected_html = "<img src=\"#\" alt='&quot;hello!&quot; &lt;THIS&gt; &amp; is encoded &quot; &amp;&semi;'>"
+      expected_html = "<img src=\"#\" alt=\"&quot;hello!&quot; &lt;THIS&gt; &amp; is encoded &quot; &amp;;\">"
 
       result = FilterHTML.filter_html(input_html, spec)
 
@@ -539,17 +541,11 @@ class TestFiltering(unittest.TestCase):
          },
       }
 
-      with self.assertRaises(FilterHTML.TagMismatchError):
-         result = FilterHTML.filter_html("<b>test<br>", spec)
-
-      with self.assertRaises(FilterHTML.TagMismatchError):
-         result = FilterHTML.filter_html("<br>test</b>", spec)
-
-      with self.assertRaises(FilterHTML.TagMismatchError):
-         result = FilterHTML.filter_html("<span><br>test</b>", spec)
-
-      with self.assertRaises(FilterHTML.HTMLSyntaxError):
-         result = FilterHTML.filter_html("<br>test<span id=\"foo", spec)
+      # bad nesting is repaired, the way browsers do it
+      self.assertEqual('<b>test<br></b>', FilterHTML.filter_html("<b>test<br>", spec))
+      self.assertEqual('<br>test', FilterHTML.filter_html("<br>test</b>", spec))
+      self.assertEqual('<span><br>test</span>', FilterHTML.filter_html("<span><br>test</b>", spec))
+      self.assertEqual('<br>test', FilterHTML.filter_html("<br>test<span id=\"foo", spec))
 
       result = FilterHTML.filter_html(u'<span id="\u2713">check</span>', spec)
       self.assertEqual('<span>check</span>', result)
@@ -574,6 +570,8 @@ class TestFiltering(unittest.TestCase):
       <a href="javascript:alert(String.fromCharCode(88,83,83))"></a>
       <a href=# onmouseover="alert('xxs')"></a>
       <a href= onmouseover="alert('xxs')"></a>
+      <a href="javascript&colon;alert&lpar;1&rpar;"></a>
+      <a href="java&Tab;script&colon;alert(1)"></a>
       <a href=&#106;&#97;&#118;&#97;&#115;&#99;&#114;&#105;&#112;&#116;&#58;&#97;&#108;&#101;&#114;&#116;&#40;
       &#39;&#88;&#83;&#83;&#39;&#41;></a>
       <a href="&#106;&#97;&#118;&#97;&#115;&#99;&#114;&#105;&#112;&#116;&#58;&#97;&#108;&#101;&#114;&#116;&#40;
@@ -603,6 +601,8 @@ class TestFiltering(unittest.TestCase):
       <a href="#"></a>
       <a href="#"></a>
       <a href="#"></a>
+      <a href="#"></a>
+      <a href="onmouseover=&quot;alert(&apos;xxs&apos;)&quot;"></a>
       <a href="#"></a>
       <a href="#"></a>
       <a href="#"></a>
@@ -789,6 +789,40 @@ class TestFiltering(unittest.TestCase):
       result = FilterHTML.filter_html(input_html, spec)
 
       self.assertEqual(expected_html, result)
+
+   def test_script_contents_never_raw(self):
+      payload = '<script><img src=x onerror=alert(1)></script>'
+
+      result = FilterHTML.filter_html(payload, {'script': False, 'img': {}})
+      self.assertEqual('', result)
+
+      result = FilterHTML.filter_html(payload, {'img': {}}, remove=['style'])
+      self.assertEqual('&lt;img src=x onerror=alert(1)&gt;', result)
+
+   def test_encoded_attribute_values(self):
+      spec = {
+         'a': {'target': ['_blank']},
+         'p': {'style': {'color': 'color'}}
+      }
+
+      result = FilterHTML.filter_html('<a target="&#95;blank">x</a>', spec)
+      self.assertEqual('<a target="_blank">x</a>', result)
+
+      result = FilterHTML.filter_html('<p style="&#99;olor:red">x</p>', spec)
+      self.assertEqual('<p style="color:red;">x</p>', result)
+
+   def test_removed_tag_contents(self):
+      result = FilterHTML.filter_html('<iframe><b>hi</b></iframe>', {'iframe': False, 'b': {}})
+      self.assertEqual('', result)
+
+   def test_lone_less_than(self):
+      result = FilterHTML.filter_html('1 < 2 and 3 > 2', {})
+      self.assertEqual('1 &lt; 2 and 3 &gt; 2', result)
+
+   def test_filter_reuse(self):
+      html_filter = FilterHTML.HTMLFilter({})
+      html_filter.filter('<style>unclosed')
+      self.assertEqual('hello', html_filter.filter('hello'))
 
 
 if __name__ == '__main__':
