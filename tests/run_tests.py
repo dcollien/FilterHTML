@@ -545,7 +545,8 @@ class TestFiltering(unittest.TestCase):
       self.assertEqual('<b>test<br></b>', FilterHTML.filter_html("<b>test<br>", spec))
       self.assertEqual('<br>test', FilterHTML.filter_html("<br>test</b>", spec))
       self.assertEqual('<span><br>test</span>', FilterHTML.filter_html("<span><br>test</b>", spec))
-      self.assertEqual('<br>test', FilterHTML.filter_html("<br>test<span id=\"foo", spec))
+      # older html.parser versions (e.g. Python 3.8) keep an unfinished tag at the end as text
+      self.assertIn(FilterHTML.filter_html("<br>test<span id=\"foo", spec), ('<br>test', '<br>test&lt;span id="foo'))
 
       result = FilterHTML.filter_html(u'<span id="\u2713">check</span>', spec)
       self.assertEqual('<span>check</span>', result)
