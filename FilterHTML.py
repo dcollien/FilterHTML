@@ -1,5 +1,7 @@
 import re
 import string
+from html import parser as _html_parser, unescape as _unescape
+from html.entities import html5 as _HTML5_ENTITIES
 from html.parser import HTMLParser
 
 def p2to3isunicode(s, t):
@@ -274,6 +276,47 @@ class _Closing(object):
    def __init__(self, tag_output):
       self.tag_output = tag_output
 
+# Before Python 3.13, html.parser decodes "&sect" in "&section=" inside attribute values; browsers don't.
+_PARSER_DECODES_ATTRS_LIKE_BROWSERS = hasattr(_html_parser, '_unescape_attrvalue')
+_ATTR_CHARREF = re.compile(r'&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*)[;=]?')
+
+def _replace_attr_charref(match):
+   ref = match.group(0)
+   # same rules as Python 3.13+: numeric always; named only as a whole name, not before "="
+   if ref.startswith('&#') or (not ref.endswith('=') and ref[1:] in _HTML5_ENTITIES):
+      return _unescape(ref)
+   return ref
+
+def _unescape_attr(value):
+   return _ATTR_CHARREF.sub(_replace_attr_charref, value)
+
+def _reread_attrs(starttag_text, attrs):
+   """ Re-read attribute values from the raw tag text with browser decoding rules """
+   tag_match = _html_parser.tagfind_tolerant.match(starttag_text, 1)
+   if not tag_match:
+      return attrs
+
+   reread = []
+   position = tag_match.end()
+   while position < len(starttag_text):
+      match = _html_parser.attrfind_tolerant.match(starttag_text, position)
+      if not match:
+         break
+      name, rest, value = match.group(1, 2, 3)
+      if not rest:
+         value = None
+      elif value[:1] == '\'' == value[-1:] or value[:1] == '"' == value[-1:]:
+         value = value[1:-1]
+      if value:
+         value = _unescape_attr(value)
+      reread.append((name.lower(), value))
+      position = match.end()
+
+   # only use the re-read values if they line up with what the parser found
+   if [name for name, _ in reread] != [name for name, _ in attrs]:
+      return attrs
+   return reread
+
 class _TreeBuilder(HTMLParser):
    """ Builds a tree of _Element and text nodes, repairing bad nesting """
    def __init__(self):
@@ -284,6 +327,9 @@ class _TreeBuilder(HTMLParser):
       self.open_counts = {}
 
    def handle_starttag(self, tag, attrs):
+      if not _PARSER_DECODES_ATTRS_LIKE_BROWSERS:
+         attrs = _reread_attrs(self.get_starttag_text(), attrs)
+
       element = _Element(tag, attrs)
       self.open_elements[-1].children.append(element)
       if tag not in VOID_ELEMENTS:

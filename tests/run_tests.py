@@ -825,6 +825,13 @@ class TestFiltering(unittest.TestCase):
       html_filter.filter('<style>unclosed')
       self.assertEqual('hello', html_filter.filter('hello'))
 
+   def test_raw_ampersands_in_attributes(self):
+      # browsers keep "&section=" and "&param" as written in attribute values; only whole entities decode
+      html = '<a href="https://x.com/p?a=1&section=2&param=3&notify=4&copy=5&amp;ok=6&copy;" title="&para &notit">x</a>'
+      expected = ('<a href="https://x.com/p?a=1&amp;section=2&amp;param=3&amp;notify=4&amp;copy=5&amp;ok=6\u00a9"'
+                  ' title="\u00b6 &amp;notit">x</a>')
+      self.assertEqual(expected, FilterHTML.filter_html(html, {'a': {'href': 'url', 'title': 'text'}}))
+
    def test_deep_nesting(self):
       depth = 5000
       html = '<b>' * depth + 'x' + '</b>' * depth
