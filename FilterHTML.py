@@ -269,18 +269,26 @@ class _Element(object):
       self.attrs = attrs
       self.children = []
 
+class _Closing(object):
+   """ Work-list marker: write a closing tag and leave the element """
+   def __init__(self, tag_output):
+      self.tag_output = tag_output
+
 class _TreeBuilder(HTMLParser):
    """ Builds a tree of _Element and text nodes, repairing bad nesting """
    def __init__(self):
       HTMLParser.__init__(self, convert_charrefs=True)
       self.root = _Element(None, [])
       self.open_elements = [self.root]
+      # open element counts by name, so unmatched closing tags don't scan the whole stack
+      self.open_counts = {}
 
    def handle_starttag(self, tag, attrs):
       element = _Element(tag, attrs)
       self.open_elements[-1].children.append(element)
       if tag not in VOID_ELEMENTS:
          self.open_elements.append(element)
+         self.open_counts[tag] = self.open_counts.get(tag, 0) + 1
 
    def handle_startendtag(self, tag, attrs):
       # like browsers, ignore "/>" on non-void elements
@@ -288,9 +296,12 @@ class _TreeBuilder(HTMLParser):
 
    def handle_endtag(self, tag):
       # close the nearest matching open element; ignore stray closing tags
-      for i in range(len(self.open_elements) - 1, 0, -1):
-         if self.open_elements[i].name == tag:
-            del self.open_elements[i:]
+      if not self.open_counts.get(tag):
+         return
+      while True:
+         element = self.open_elements.pop()
+         self.open_counts[element.name] -= 1
+         if element.name == tag:
             return
 
    def handle_data(self, data):
@@ -331,37 +342,48 @@ class HTMLFilter(object):
       self.spec = spec
 
    def filter(self, html):
-      return self.__filter_nodes(_parse(html), [], self.text_filter)
-
-   def __filter_nodes(self, nodes, tag_stack, text_filter):
       output = []
+      tag_stack = []
 
-      for node in nodes:
-         if isinstance(node, _Element):
-            output.append(self.__filter_element(node, tag_stack, text_filter))
+      # a work list instead of recursion, so deep nesting can't overflow the call stack
+      work = []
+      self.__push_nodes(work, _parse(html), self.text_filter)
+
+      while work:
+         node, text_filter = work.pop()
+
+         if isinstance(node, _Closing):
+            tag_stack.pop()
+            output.append(node.tag_output)
+         elif isinstance(node, _Element):
+            self.__filter_element(node, tag_stack, text_filter, output, work)
          elif text_filter is not None:
             filtered_text = text_filter(_escape(node, TEXT_FILTER_ESCAPE_CHARS), tag_stack)
 
             # the text filter returns HTML, which must also adhere to the spec
-            output.append(self.__filter_nodes(_parse(filtered_text), tag_stack, None))
+            self.__push_nodes(work, _parse(filtered_text), None)
          else:
             output.append(_escape(node, HTML_ESCAPE_CHARS))
 
       return ''.join(output)
 
-   def __filter_element(self, element, tag_stack, text_filter):
+   def __push_nodes(self, work, nodes, text_filter):
+      work.extend((node, text_filter) for node in reversed(nodes))
+
+   def __filter_element(self, element, tag_stack, text_filter, output, work):
       if element.name in self.removals:
-         return ''
+         return
 
       tag_spec = self.__get_tag_spec(element.name, tag_stack)
 
       if tag_spec is None:
          # remove the tag, keep its contents
-         return self.__filter_nodes(element.children, tag_stack, text_filter)
+         self.__push_nodes(work, element.children, text_filter)
+         return
 
       if tag_spec == False:
          # remove the tag and its contents
-         return ''
+         return
 
       tag_name, attributes = self.__follow_aliases(element.name)
       attributes += self.__filter_attributes(tag_name, element.attrs, tag_stack)
@@ -370,17 +392,20 @@ class HTMLFilter(object):
       if len(attributes) > 0:
          tag_output += ' ' + ' '.join(attributes)
       tag_output += '>'
+      output.append(tag_output)
 
       if tag_name in VOID_ELEMENTS:
-         return tag_output
+         return
 
       if element.name == 'script' and tag_name == 'script':
          # the spec explicitly allows scripts, so their contents pass through unchanged
-         contents = ''.join(child for child in element.children if not isinstance(child, _Element))
-      else:
-         contents = self.__filter_nodes(element.children, tag_stack + [(tag_name, attributes)], text_filter)
+         output.append(''.join(child for child in element.children if not isinstance(child, _Element)))
+         output.append('</%s>' % tag_name)
+         return
 
-      return '%s%s</%s>' % (tag_output, contents, tag_name)
+      tag_stack.append((tag_name, attributes))
+      work.append((_Closing('</%s>' % tag_name), None))
+      self.__push_nodes(work, element.children, text_filter)
 
    def __get_tag_spec(self, tag_name, tag_stack):
       tag_spec = self.spec.get(tag_name, None)

@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import unittest, re
+import unittest, re, time
 
 import FilterHTML
 
@@ -824,6 +824,19 @@ class TestFiltering(unittest.TestCase):
       html_filter = FilterHTML.HTMLFilter({})
       html_filter.filter('<style>unclosed')
       self.assertEqual('hello', html_filter.filter('hello'))
+
+   def test_deep_nesting(self):
+      depth = 5000
+      html = '<b>' * depth + 'x' + '</b>' * depth
+      self.assertEqual(html, FilterHTML.filter_html(html, {'b': {}}))
+      self.assertEqual('x', FilterHTML.filter_html(html, {}))
+
+   def test_many_unmatched_closing_tags(self):
+      count = 20000
+      start = time.time()
+      result = FilterHTML.filter_html('<b>' * count + '</i>' * count, {'b': {}})
+      self.assertEqual('<b>' * count + '</b>' * count, result)
+      self.assertLess(time.time() - start, 5)
 
 
 if __name__ == '__main__':

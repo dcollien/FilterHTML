@@ -59,3 +59,6 @@ Still open: #8, #11, and the follow-ups at the bottom.
 17. **Shared test cases** for Python and JS, so the two can't drift apart again.
 18. **Allowed `<script>` content in Python** is cut at the first `</script>`, without
     the browser's `<!--<script>` rule. Only matters when the spec allows scripts.
+19. **JS: many unmatched closing tags are slow inside parse5** (quadratic, as in the
+    HTML standard's algorithm): 100,000 take ~55s in Node. Browsers cap depth at 512.
+    Option: cap input size or nesting before parsing in Node.

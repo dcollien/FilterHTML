@@ -456,4 +456,16 @@ module.exports.test_lone_less_than = function(test) {
    test.done();
 };
 
+module.exports.test_deep_nesting = function(test) {
+   var depth = 5000;
+   var html = new Array(depth + 1).join('<b>') + 'x' + new Array(depth + 1).join('</b>');
+   var result = FilterHTML.filter_html(html, {'b': {}});
+
+   // browsers cap nesting depth and rearrange deeper tags, so check completeness, not shape
+   test.equal('x', result.replace(/<\/?b>/g, ''));
+   test.equal(result.split('<b>').length, result.split('</b>').length);
+   test.equal('x', FilterHTML.filter_html(html, {}));
+   test.done();
+};
+
 // TODO finish off tests as per run_tests.py
